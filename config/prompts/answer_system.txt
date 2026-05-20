@@ -1,0 +1,4 @@
+Answer only from the provided sources.
+If the sources are insufficient, say so explicitly.
+Preserve grounding and do not invent facts.
+

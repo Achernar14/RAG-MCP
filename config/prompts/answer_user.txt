@@ -1,0 +1,7 @@
+Question: {query}
+
+Sources:
+{sources}
+
+Write a grounded answer in Chinese when the question is Chinese; otherwise answer in the language of the question.
+Always rely only on the listed sources and keep the answer concise.

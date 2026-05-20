@@ -1,0 +1,94 @@
+app:
+  name: "rag-mcp"
+  environment: "development"
+
+embedding:
+  provider: "zhipu"
+  dimensions: 2048
+
+embedding_provider:
+  api_base: "https://open.bigmodel.cn/api/paas/v4"
+  api_key_env: "ZHIPU_API_KEY"
+  model: "embedding-3"
+  timeout_seconds: 30.0
+
+llm:
+  provider: "deepseek"
+  enabled: true
+  api_base: "https://api.deepseek.com"
+  api_key_env: "DEEPSEEK_API_KEY"
+  model: "deepseek-chat"
+  temperature: 0.1
+  max_tokens: 1024
+  timeout_seconds: 60.0
+
+vision_llm:
+  provider: "disabled"
+  enabled: false
+  api_base: null
+  api_key_env: "OPENAI_API_KEY"
+  model: null
+  timeout_seconds: 60.0
+
+vector_store:
+  provider: "chroma"
+  persist_path: "data/vector_store/chroma_live"
+  collection_name: "rag_mcp_live"
+
+ingestion:
+  chunk_size: 500
+  chunk_overlap: 50
+  normalize_whitespace: true
+  preserve_paragraph_breaks: true
+  boundary_scan_chars: 80
+  min_chunk_length: 40
+  max_file_size_bytes: 20971520
+  allow_hidden_files: false
+  supported_extensions:
+    - ".txt"
+    - ".md"
+    - ".pdf"
+
+retrieval:
+  top_k: 5
+  dense_top_k: 5
+  sparse_top_k: 5
+  hybrid_top_k: 5
+  rrf_k: 60
+  rerank_enabled: true
+  rerank_top_k: 5
+
+rerank:
+  provider: "lexical"
+  enabled: true
+  model: null
+  api_base: null
+  api_key_env: "RERANK_API_KEY"
+  score_threshold: null
+  timeout_seconds: 30.0
+
+observability:
+  trace_enabled: true
+  trace_path: "data/traces/traces.jsonl"
+
+evaluation:
+  enabled: true
+  report_path: "data/evaluations/reports.jsonl"
+  default_test_set_path: "data/evaluations/golden_test_set.json"
+  metrics:
+    - "hit_rate"
+    - "mrr"
+  top_k: 5
+  persist_reports: true
+
+prompts:
+  answer_system_prompt_path: "config/prompts/answer_system.txt"
+  answer_user_prompt_path: "config/prompts/answer_user.txt"
+
+mcp:
+  server_name: "rag-mcp"
+  server_version: "0.1.0"
+
+api:
+  host: "127.0.0.1"
+  port: 8000

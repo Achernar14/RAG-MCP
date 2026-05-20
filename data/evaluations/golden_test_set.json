@@ -1,0 +1,35 @@
+{
+  "dataset_name": "default_retrieval_suite",
+  "cases": [
+    {
+      "case_id": "case_sample_mvp",
+      "query": "What does the MVP support?",
+      "expected_source_paths": [
+        "sample.md"
+      ],
+      "metadata": {
+        "category": "mvp"
+      }
+    },
+    {
+      "case_id": "case_sample_protocol",
+      "query": "Which query interface does the MVP support?",
+      "expected_source_paths": [
+        "sample.md"
+      ],
+      "metadata": {
+        "category": "protocol"
+      }
+    },
+    {
+      "case_id": "case_bm25_exact",
+      "query": "BM25 exact term matching",
+      "expected_source_paths": [
+        "bm25_sample.md"
+      ],
+      "metadata": {
+        "category": "hybrid"
+      }
+    }
+  ]
+}
