@@ -38,6 +38,30 @@ RAG-MCP/
 
 ## 安装
 
+### 创建虚拟环境
+
+**Linux / macOS:**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+> **注意**: 在 Ubuntu/Debian 系统上，如果提示 `ensurepip is not available`，需要先安装 `python3-venv`：
+>
+> ```bash
+> sudo apt install python3.venv
+> ```
+
+**Windows PowerShell:**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+### 安装依赖
+
 本项目使用 `backend/pyproject.toml` 作为依赖入口。
 
 仅安装后端运行依赖：
@@ -52,16 +76,18 @@ pip install -e ./backend
 pip install -e ./backend[dev]
 ```
 
-如果你使用 PowerShell 并且已经创建虚拟环境，典型流程如下：
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-pip install -e .\backend[dev]
-```
-
 ## 配置
 
 项目默认从本地配置文件读取运行参数。初始化时建议先从模板复制：
+
+**Linux / macOS:**
+
+```bash
+cp config/settings.yaml.example config/settings.yaml
+cp .env.example .env
+```
+
+**Windows PowerShell:**
 
 ```powershell
 Copy-Item .\config\settings.yaml.example .\config\settings.yaml
@@ -151,6 +177,14 @@ python -m streamlit run backend/src/rag_mcp/observability/dashboard/app.py
 
 如果你更希望使用仓库内脚本，也可以运行：
 
+**Linux / macOS:**
+
+```bash
+bash scripts/start_dashboard.sh
+```
+
+**Windows PowerShell:**
+
 ```powershell
 .\scripts\start_dashboard.ps1
 ```
@@ -187,6 +221,18 @@ python -m rag_mcp.mcp.server
 5. 启动 FastAPI 或 Dashboard
 
 最短调试路径通常是：
+
+**Linux / macOS:**
+
+```bash
+source .venv/bin/activate
+pip install -e ./backend[dev]
+cp config/settings.yaml.example config/settings.yaml
+cp .env.example .env
+PYTHONPATH=backend/src uvicorn rag_mcp.main:app --reload
+```
+
+**Windows PowerShell:**
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
