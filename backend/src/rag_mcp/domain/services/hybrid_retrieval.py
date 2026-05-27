@@ -3,22 +3,41 @@
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING
 
 from rag_mcp.domain.entities.models import RetrievalResult
+
+if TYPE_CHECKING:
+    from rag_mcp.infrastructure.redis.cache import RedisCacheService
 
 
 class HybridRetrievalService:
     """Combine dense and sparse retrieval using Reciprocal Rank Fusion."""
 
-    def __init__(self, embedding_provider, vector_store, sparse_index, settings, reranker=None) -> None:
+    def __init__(
+        self,
+        embedding_provider,
+        vector_store,
+        sparse_index,
+        settings,
+        reranker=None,
+        redis_cache: RedisCacheService | None = None,
+    ) -> None:
         self.embedding_provider = embedding_provider
         self.vector_store = vector_store
         self.sparse_index = sparse_index
         self.settings = settings
         self.reranker = reranker
+        self.redis_cache = redis_cache
 
     def search(self, query: str, top_k: int, trace) -> list[RetrievalResult]:
         """Execute dense and sparse retrieval, then fuse results."""
+        # Try retrieval cache
+        if self.redis_cache is not None:
+            cached = self._try_retrieval_cache(query, top_k, trace)
+            if cached is not None:
+                return cached
+
         start = time.monotonic()
         query_vector = self.embedding_provider.embed_texts([query])[0]
         trace.record_stage(
@@ -75,8 +94,54 @@ class HybridRetrievalService:
                 {"result_count": len(reranked), "method": self.reranker.__class__.__name__},
                 (time.monotonic() - start) * 1000.0,
             )
-            return reranked
+            fused = reranked
+
+        # Store in retrieval cache
+        if self.redis_cache is not None:
+            self._store_retrieval_cache(query, fused, trace)
+
         return fused
+
+    def _try_retrieval_cache(
+        self, query: str, top_k: int, trace
+    ) -> list[RetrievalResult] | None:
+        """Attempt to load cached retrieval results."""
+        collection = getattr(self.vector_store, "collection_name", "default")
+        cached_dicts = self.redis_cache.get_retrieval(query, collection)
+        if cached_dicts is None:
+            return None
+        results = []
+        for d in cached_dicts:
+            results.append(RetrievalResult(
+                chunk_id=d.get("chunk_id", ""),
+                score=d.get("score", 0.0),
+                text=d.get("text", ""),
+                metadata=d.get("metadata", {}),
+                retrieval_method=d.get("retrieval_method", "cached"),
+            ))
+        trace.record_stage(
+            "retrieval_cache_hit",
+            {"result_count": len(results), "source": "redis"},
+            0.0,
+        )
+        return results[:top_k]
+
+    def _store_retrieval_cache(
+        self, query: str, results: list[RetrievalResult], trace
+    ) -> None:
+        """Persist retrieval results to Redis cache."""
+        collection = getattr(self.vector_store, "collection_name", "default")
+        dicts = []
+        for r in results:
+            d = {
+                "chunk_id": r.chunk_id,
+                "score": r.score,
+                "text": r.text,
+                "metadata": r.metadata,
+                "retrieval_method": r.retrieval_method,
+            }
+            dicts.append(d)
+        self.redis_cache.set_retrieval(query, collection, dicts)
 
     def _rrf_fuse(
         self,

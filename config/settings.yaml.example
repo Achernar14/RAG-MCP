@@ -92,3 +92,17 @@ mcp:
 api:
   host: "127.0.0.1"
   port: 8000
+
+redis:
+  enabled: false
+  host: "127.0.0.1"
+  port: 6379
+  db: 0
+  password_env: "REDIS_PASSWORD"
+  max_connections: 50
+  socket_timeout: 5.0
+  ttl_embedding: 604800
+  ttl_retrieval: 3600
+  cache:
+    embedding_enabled: true
+    retrieval_enabled: true

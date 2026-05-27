@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
 from chromadb.api import shared_system_client
@@ -50,6 +51,8 @@ from rag_mcp.infrastructure.splitters.simple_splitter import SimpleTextSplitter
 from rag_mcp.infrastructure.vector_store.chroma_store import ChromaVectorStore
 from rag_mcp.infrastructure.vector_store.memory_store import InMemoryVectorStore
 
+logger = logging.getLogger(__name__)
+
 
 class ApplicationContainer:
     """Owns singleton components used by the MVP."""
@@ -79,7 +82,12 @@ class ApplicationContainer:
         self.reranker = create_reranker(self.settings)
         self.vision_llm_provider = create_vision_llm_provider(self.settings)
         self.llm_provider = create_llm_provider(self.settings)
-        self.embedding_provider = create_embedding_provider(self.settings)
+
+        # Redis cache (optional)
+        self._redis_client = None
+        self._redis_cache = self._create_redis_cache()
+        self.embedding_provider = self._create_embedding_with_cache()
+
         self.prompt_template_loader = FilePromptTemplateLoader()
         self.answer_prompt_builder = AnswerPromptBuilder(
             template_loader=self.prompt_template_loader,
@@ -122,6 +130,7 @@ class ApplicationContainer:
             sparse_index=self.sparse_index,
             settings=settings.retrieval,
             reranker=self.reranker,
+            redis_cache=self._redis_cache if self.settings.redis.cache.retrieval_enabled else None,
         )
         self.dense_retrieval_service = RetrievalService(
             embedding_provider=self.embedding_provider,
@@ -198,9 +207,46 @@ class ApplicationContainer:
         close_method = getattr(self.vector_store, "close", None)
         if callable(close_method):
             close_method()
+        if self._redis_client is not None:
+            self._redis_client.close()
         clear_cache = getattr(shared_system_client.SharedSystemClient, "clear_system_cache", None)
         if callable(clear_cache):
             clear_cache()
+
+    def _create_redis_cache(self):
+        """Create a RedisCacheService if Redis is enabled and reachable."""
+        if not self.settings.redis.enabled:
+            return None
+        try:
+            from rag_mcp.infrastructure.redis.cache import RedisCacheService
+            from rag_mcp.infrastructure.redis.client import RedisClient
+
+            client = RedisClient(self.settings.redis)
+            if not client.ping():
+                logger.warning("Redis ping failed, caching disabled")
+                client.close()
+                return None
+            self._redis_client = client
+            return RedisCacheService(client, self.settings.redis)
+        except ImportError:
+            logger.info("redis package not installed, caching disabled")
+            return None
+        except Exception:
+            logger.warning("Redis initialization failed, caching disabled", exc_info=True)
+            return None
+
+    def _create_embedding_with_cache(self):
+        """Create embedding provider, optionally wrapped with caching."""
+        provider = create_embedding_provider(self.settings)
+        if (
+            self._redis_cache is not None
+            and self.settings.redis.cache.embedding_enabled
+        ):
+            from rag_mcp.infrastructure.embedding.caching_embedding import (
+                CachingEmbeddingProvider,
+            )
+            return CachingEmbeddingProvider(provider, self._redis_cache)
+        return provider
 
     def _create_vector_store(self):
         provider = self.settings.vector_store.provider.lower()

@@ -133,6 +133,25 @@ class ApiSettings(BaseModel):
     port: int = 8000
 
 
+class RedisCacheSettings(BaseModel):
+    embedding_enabled: bool = False
+    retrieval_enabled: bool = False
+
+
+class RedisSettings(BaseModel):
+    enabled: bool = False
+    host: str = "127.0.0.1"
+    port: int = 6379
+    db: int = 0
+    password_env: str | None = None
+    max_connections: int = 50
+    socket_timeout: float = 5.0
+    socket_connect_timeout: float = 5.0
+    ttl_embedding: int = 604800  # 7 days
+    ttl_retrieval: int = 3600  # 1 hour
+    cache: RedisCacheSettings = Field(default_factory=RedisCacheSettings)
+
+
 class Settings(BaseModel):
     app: AppSettings = Field(default_factory=AppSettings)
     embedding: EmbeddingSettings = Field(default_factory=EmbeddingSettings)
@@ -148,6 +167,7 @@ class Settings(BaseModel):
     prompts: PromptSettings = Field(default_factory=PromptSettings)
     mcp: McpSettings = Field(default_factory=McpSettings)
     api: ApiSettings = Field(default_factory=ApiSettings)
+    redis: RedisSettings = Field(default_factory=RedisSettings)
 
 
 def ensure_default_config() -> Path:
