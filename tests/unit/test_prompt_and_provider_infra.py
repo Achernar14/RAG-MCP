@@ -186,7 +186,7 @@ def test_create_providers_from_settings(tmp_path, monkeypatch):
             "timeout_seconds": 60.0,
         },
         "vision_llm": {"provider": "disabled", "enabled": False},
-        "vector_store": {"provider": "memory", "persist_path": "data/vector_store/chroma"},
+        "vector_store": {"provider": "memory", "persist_path": "data/vector_store/weaviate"},
         "ingestion": {
             "chunk_size": 200,
             "chunk_overlap": 20,
@@ -221,7 +221,7 @@ def test_create_provider_raises_for_unknown_embedding_provider(tmp_path, monkeyp
         "embedding_provider": {},
         "llm": {"provider": "stub", "enabled": False},
         "vision_llm": {"provider": "disabled", "enabled": False},
-        "vector_store": {"provider": "memory", "persist_path": "data/vector_store/chroma"},
+        "vector_store": {"provider": "memory", "persist_path": "data/vector_store/weaviate"},
         "ingestion": {
             "chunk_size": 200,
             "chunk_overlap": 20,
@@ -253,7 +253,7 @@ def test_create_reranker_and_vision_provider_from_settings(tmp_path, monkeypatch
         "embedding_provider": {},
         "llm": {"provider": "stub", "enabled": False},
         "vision_llm": {"provider": "disabled", "enabled": False},
-        "vector_store": {"provider": "memory", "persist_path": "data/vector_store/chroma"},
+        "vector_store": {"provider": "memory", "persist_path": "data/vector_store/weaviate"},
         "ingestion": {
             "chunk_size": 200,
             "chunk_overlap": 20,
@@ -296,7 +296,7 @@ def test_create_reranker_returns_none_when_disabled(tmp_path, monkeypatch):
         "embedding_provider": {},
         "llm": {"provider": "stub", "enabled": False},
         "vision_llm": {"provider": "disabled", "enabled": False},
-        "vector_store": {"provider": "memory", "persist_path": "data/vector_store/chroma"},
+        "vector_store": {"provider": "memory", "persist_path": "data/vector_store/weaviate"},
         "ingestion": {
             "chunk_size": 200,
             "chunk_overlap": 20,
@@ -337,7 +337,7 @@ def test_create_reranker_raises_for_unknown_provider(tmp_path, monkeypatch):
         "embedding_provider": {},
         "llm": {"provider": "stub", "enabled": False},
         "vision_llm": {"provider": "disabled", "enabled": False},
-        "vector_store": {"provider": "memory", "persist_path": "data/vector_store/chroma"},
+        "vector_store": {"provider": "memory", "persist_path": "data/vector_store/weaviate"},
         "ingestion": {
             "chunk_size": 200,
             "chunk_overlap": 20,

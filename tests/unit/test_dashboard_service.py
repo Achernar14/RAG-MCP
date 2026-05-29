@@ -16,9 +16,12 @@ def isolated_runtime(tmp_path, monkeypatch):
         "app": {"name": "rag-mcp", "environment": "test"},
         "embedding": {"provider": "hash", "dimensions": 64},
         "vector_store": {
-            "provider": "chroma",
-            "persist_path": str(runtime_root / "vector_store" / "chroma"),
-            "collection_name": "dashboard_test_collection",
+            "provider": "weaviate",
+            "collection_name": "TestRAGMCP",
+            "weaviate_persistence_data_path": str(runtime_root / "vector_store" / "weaviate"),
+            "weaviate_version": "1.37.2",
+            "weaviate_hostname": "127.0.0.1",
+            "weaviate_port": 8079,
         },
         "ingestion": {
             "chunk_size": 500,
@@ -69,7 +72,7 @@ def test_dashboard_service_exposes_management_and_trace_data():
 
     service = DashboardService()
     settings = service.get_settings()
-    assert settings["vector_store"]["collection_name"] == "dashboard_test_collection"
+    assert settings["vector_store"]["collection_name"] == "TestRAGMCP"
 
     status = service.get_status()
     assert status["document_count"] >= 1
@@ -77,7 +80,7 @@ def test_dashboard_service_exposes_management_and_trace_data():
 
     collections = service.list_collections()
     assert collections
-    assert collections[0]["name"] == "dashboard_test_collection"
+    assert collections[0]["name"] == "TestRAGMCP"
 
     documents = service.list_documents()
     assert documents
@@ -146,7 +149,7 @@ def test_dashboard_service_exposes_mutating_management_actions(tmp_path):
     assert documents
     document_id = documents[0]["id"]
 
-    rebuild = service.rebuild_collection("dashboard_test_collection")
+    rebuild = service.rebuild_collection("TestRAGMCP")
     assert rebuild["requested_document_count"] >= 1
     assert rebuild["rebuilt_document_count"] >= 1
 

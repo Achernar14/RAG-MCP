@@ -31,9 +31,13 @@ vision_llm:
   timeout_seconds: 60.0
 
 vector_store:
-  provider: "chroma"
+  provider: "weaviate"
+  collection_name: "RAG_MCP"
   persist_path: "data/vector_store/chroma_live"
-  collection_name: "rag_mcp_live"
+  weaviate_persistence_data_path: "data/vector_store/weaviate"
+  weaviate_version: "1.37.2"
+  weaviate_hostname: "127.0.0.1"
+  weaviate_port: 8079
 
 ingestion:
   chunk_size: 500

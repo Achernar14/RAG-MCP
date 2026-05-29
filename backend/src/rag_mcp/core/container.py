@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from chromadb.api import shared_system_client
-
 from rag_mcp.application.use_cases.ingest_document import IngestDocumentUseCase
 from rag_mcp.application.use_cases.delete_document import DeleteDocumentUseCase
 from rag_mcp.application.use_cases.generate_answer import GenerateAnswerUseCase
@@ -50,6 +48,7 @@ from rag_mcp.infrastructure.sparse.bm25_store import JsonBm25Store
 from rag_mcp.infrastructure.splitters.simple_splitter import SimpleTextSplitter
 from rag_mcp.infrastructure.vector_store.chroma_store import ChromaVectorStore
 from rag_mcp.infrastructure.vector_store.memory_store import InMemoryVectorStore
+from rag_mcp.infrastructure.vector_store.weaviate_store import WeaviateVectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +58,11 @@ class ApplicationContainer:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        vector_store_dir = resolve_project_path(
-            self.settings.vector_store.persist_path
-        ).parent
+        vs = self.settings.vector_store
+        if vs.provider.lower() == "weaviate":
+            vector_store_dir = resolve_project_path(vs.weaviate_persistence_data_path).parent
+        else:
+            vector_store_dir = resolve_project_path(vs.persist_path).parent
         self.trace_collector = JsonlTraceCollector(
             resolve_project_path(settings.observability.trace_path)
         )
@@ -209,9 +210,6 @@ class ApplicationContainer:
             close_method()
         if self._redis_client is not None:
             self._redis_client.close()
-        clear_cache = getattr(shared_system_client.SharedSystemClient, "clear_system_cache", None)
-        if callable(clear_cache):
-            clear_cache()
 
     def _create_redis_cache(self):
         """Create a RedisCacheService if Redis is enabled and reachable."""
@@ -257,6 +255,18 @@ class ApplicationContainer:
                 persist_path=str(
                     resolve_project_path(self.settings.vector_store.persist_path)
                 ),
+                collection_name=self.settings.vector_store.collection_name,
+            )
+        if provider == "weaviate":
+            return WeaviateVectorStore(
+                persistence_data_path=str(
+                    resolve_project_path(
+                        self.settings.vector_store.weaviate_persistence_data_path
+                    )
+                ),
+                version=self.settings.vector_store.weaviate_version,
+                hostname=self.settings.vector_store.weaviate_hostname,
+                port=self.settings.vector_store.weaviate_port,
                 collection_name=self.settings.vector_store.collection_name,
             )
         raise ValueError(f"Unsupported vector store provider: {provider}")

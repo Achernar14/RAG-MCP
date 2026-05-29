@@ -19,9 +19,12 @@ def isolated_runtime(tmp_path, monkeypatch):
         "app": {"name": "rag-mcp", "environment": "test"},
         "embedding": {"provider": "hash", "dimensions": 64},
         "vector_store": {
-            "provider": "chroma",
-            "persist_path": str(runtime_root / "vector_store" / "chroma"),
-            "collection_name": "management_test_collection",
+            "provider": "weaviate",
+            "collection_name": "TestRAGMCP",
+            "weaviate_persistence_data_path": str(runtime_root / "vector_store" / "weaviate"),
+            "weaviate_version": "1.37.2",
+            "weaviate_hostname": "127.0.0.1",
+            "weaviate_port": 8079,
         },
         "ingestion": {
             "chunk_size": 500,
@@ -70,7 +73,7 @@ def test_rest_collection_and_document_summary_flow():
     assert collections.status_code == 200
     collections_body = collections.json()
     assert collections_body["code"] == 0
-    assert collections_body["data"][0]["name"] == "management_test_collection"
+    assert collections_body["data"][0]["name"] == "TestRAGMCP"
     assert collections_body["data"][0]["document_count"] >= 1
 
     documents = client.get("/api/v1/documents")
@@ -84,7 +87,7 @@ def test_rest_collection_and_document_summary_flow():
     assert stats.status_code == 200
     stats_body = stats.json()
     assert stats_body["code"] == 0
-    assert stats_body["data"]["collection_name"] == "management_test_collection"
+    assert stats_body["data"]["collection_name"] == "TestRAGMCP"
     assert stats_body["data"]["document_count"] >= 1
     assert stats_body["data"]["chunk_count"] >= 1
 
@@ -118,7 +121,7 @@ def test_mcp_collection_and_document_summary_flow():
     collections = handle_message({"tool": "list_collections", "arguments": {}})
     assert collections["ok"] is True
     assert collections["data"]
-    assert collections["data"][0]["name"] == "management_test_collection"
+    assert collections["data"][0]["name"] == "TestRAGMCP"
 
     documents = handle_message({"tool": "list_documents", "arguments": {}})
     assert documents["ok"] is True
@@ -127,7 +130,7 @@ def test_mcp_collection_and_document_summary_flow():
 
     status = handle_message({"tool": "knowledge_status", "arguments": {}})
     assert status["ok"] is True
-    assert status["data"]["collection_name"] == "management_test_collection"
+    assert status["data"]["collection_name"] == "TestRAGMCP"
     assert status["data"]["document_count"] >= 1
     assert status["data"]["chunk_count"] >= 1
 
@@ -250,7 +253,7 @@ def test_rebuild_collection_replaces_stale_indexes_rest_and_mcp(tmp_path):
 
     settings_path = Path(__import__("os").getenv("RAG_MCP_SETTINGS_PATH"))
     settings = yaml.safe_load(settings_path.read_text(encoding="utf-8"))
-    metadata_base = Path(settings["vector_store"]["persist_path"]).parent
+    metadata_base = Path(settings["vector_store"]["weaviate_persistence_data_path"]).parent
     bm25_index = json.loads(metadata_base.joinpath("bm25_index.json").read_text(encoding="utf-8"))
     assert all("obsoletekeyword" not in payload["text"] for payload in bm25_index.values())
 

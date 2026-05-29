@@ -17,9 +17,12 @@ def isolated_runtime(tmp_path, monkeypatch):
         "app": {"name": "rag-mcp", "environment": "test"},
         "embedding": {"provider": "hash", "dimensions": 64},
         "vector_store": {
-            "provider": "chroma",
-            "persist_path": str(runtime_root / "vector_store" / "chroma"),
-            "collection_name": "hybrid_test_collection",
+            "provider": "weaviate",
+            "collection_name": "TestRAGMCP",
+            "weaviate_persistence_data_path": str(runtime_root / "vector_store" / "weaviate"),
+            "weaviate_version": "1.37.2",
+            "weaviate_hostname": "127.0.0.1",
+            "weaviate_port": 8079,
         },
         "ingestion": {
             "chunk_size": 500,
@@ -83,7 +86,7 @@ def test_sparse_index_file_created():
 
     settings_file = Path(__import__("os").getenv("RAG_MCP_SETTINGS_PATH"))
     settings = yaml.safe_load(settings_file.read_text(encoding="utf-8"))
-    base = Path(settings["vector_store"]["persist_path"]).parent
+    base = Path(settings["vector_store"]["weaviate_persistence_data_path"]).parent
     assert base.joinpath("bm25_index.json").exists()
 
 

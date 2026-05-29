@@ -67,9 +67,15 @@ class VisionLlmSettings(BaseModel):
 
 
 class VectorStoreSettings(BaseModel):
-    provider: str = "chroma"
+    provider: str = "weaviate"
     persist_path: str = "data/vector_store/chroma"
-    collection_name: str = "rag_mcp_default"
+    collection_name: str = "RAG_MCP"
+
+    # Weaviate Embedded options
+    weaviate_persistence_data_path: str = "data/vector_store/weaviate"
+    weaviate_version: str = "1.37.2"
+    weaviate_hostname: str = "127.0.0.1"
+    weaviate_port: int = 8079
 
 
 class IngestionSettings(BaseModel):

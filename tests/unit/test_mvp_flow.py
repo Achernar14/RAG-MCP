@@ -17,9 +17,12 @@ def isolated_runtime(tmp_path, monkeypatch):
         "app": {"name": "rag-mcp", "environment": "test"},
         "embedding": {"provider": "hash", "dimensions": 64},
         "vector_store": {
-            "provider": "chroma",
-            "persist_path": str(runtime_root / "vector_store" / "chroma"),
-            "collection_name": "test_collection",
+            "provider": "weaviate",
+            "collection_name": "TestRAGMCP",
+            "weaviate_persistence_data_path": str(runtime_root / "vector_store" / "weaviate"),
+            "weaviate_version": "1.37.2",
+            "weaviate_hostname": "127.0.0.1",
+            "weaviate_port": 8079,
         },
         "ingestion": {
             "chunk_size": 500,
@@ -71,7 +74,7 @@ def test_ingest_and_query_flow():
     assert query_body["data"]["sources"]
     settings_file = Path(__import__("os").getenv("RAG_MCP_SETTINGS_PATH"))
     settings = yaml.safe_load(settings_file.read_text(encoding="utf-8"))
-    metadata_base = Path(settings["vector_store"]["persist_path"]).parent
+    metadata_base = Path(settings["vector_store"]["weaviate_persistence_data_path"]).parent
     assert metadata_base.joinpath("documents.json").exists()
 
 
@@ -129,8 +132,8 @@ def test_persistence_files_created():
     from os import getenv
     settings_file = Path(getenv("RAG_MCP_SETTINGS_PATH"))
     settings = yaml.safe_load(settings_file.read_text(encoding="utf-8"))
-    base = Path(settings["vector_store"]["persist_path"]).parent
+    base = Path(settings["vector_store"]["weaviate_persistence_data_path"]).parent
     assert base.joinpath("documents.json").exists()
     assert base.joinpath("chunks.json").exists()
-    assert base.joinpath("chroma").exists()
+    assert base.joinpath("weaviate").exists()
     assert base.joinpath("bm25_index.json").exists()
