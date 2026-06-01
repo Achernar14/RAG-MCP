@@ -1,291 +1,134 @@
 # RAG-MCP
 
-本项目是一个面向本地知识库场景的 RAG 后端与 MCP Server，当前仓库聚焦三类能力：
+> 面向本地知识库与 AI Agent 集成场景的模块化 RAG 服务
 
-- 文档摄取：支持 `txt`、`md`、`pdf` 的加载、切分、索引与持久化
-- 检索与问答：提供查询、答案生成、重建索引、评测等后端能力
-- 可观测性：提供 Dashboard、trace、评测报告等本地调试入口
+本项目由华南师范大学软件学院的龙成飞（@longjincf）、曾博源（@Achernar14）完成。
 
-当前主代码位于 `backend/src/rag_mcp`，其余目录主要承载配置、样例数据、文档和测试。
+## 项目定位
+
+RAG-MCP 是一个"面向 AI Agent / MCP Client 的知识上下文服务层与 RAG 能力底座"，聚焦三类能力：
+
+- **文档摄取** — 支持 `txt`、`md`、`pdf` 的加载、切分、向量化与索引
+- **检索与问答** — 混合 Dense + Sparse 检索、RRF 融合、Rerank、生成式问答
+- **可观测性** — Trace 收集、Dashboard、评测体系
+
+通过 REST API 和 **MCP Streamable HTTP** 协议暴露能力，可独立运行，也可作为 AI Agent 的知识后端。
+
+## 传输协议
+
+RAG-MCP 支持三种 MCP 传输方式，通过 `config/settings.yaml` 中的 `mcp.transport` 配置：
+
+| 传输方式             | 说明                               | 适用场景              |
+| ---------------- | -------------------------------- | ----------------- |
+| `streamable-http` | **推荐** — MCP 官方新一代 HTTP 传输，支持远程访问 | 生产部署、远程 Agent 接入  |
+| `stdio`          | 标准输入输出，本地进程通信                     | 本地开发、IDE 集成       |
+| `sse`            | Server-Sent Events（旧版 HTTP 传输）    | 兼容旧版 MCP Client  |
+
+### MCP Streamable HTTP 模式（推荐）
+
+启动后，MCP 服务自动挂载在 FastAPI 的 `/mcp` 路径下，与 REST API 共存：
+
+```bash
+# 启动统一服务（REST API + MCP HTTP）
+PYTHONPATH=backend/src uvicorn rag_mcp.main:app --host 127.0.0.1 --port 8000
+
+# MCP 端点: http://127.0.0.1:8000/mcp
+# REST 端点: http://127.0.0.1:8000/api/v1/*
+```
+
+### MCP stdio 模式
+
+```bash
+# 通过命令行参数指定传输
+python -m rag_mcp.mcp.server --transport stdio
+```
+
+### MCP 独立 HTTP 模式
+
+```bash
+# 独立运行 MCP 服务器（不依赖 FastAPI）
+python -m rag_mcp.mcp.server --transport streamable-http
+```
 
 ## 项目结构
 
 ```text
 RAG-MCP/
-├── backend/                     # Python package 与后端实现
-│   ├── pyproject.toml
-│   └── src/rag_mcp/
-├── config/                      # 配置模板与提示词
-├── data/                        # 示例文档、评测集、本地运行数据目录
-├── docs/                        # 设计与技术文档
-├── scripts/                     # 本地启动脚本
-└── tests/                       # 单元测试与集成测试
+├── backend/src/rag_mcp/        # 主代码
+│   ├── core/                   # 容器、配置、异常、Skill 注册
+│   ├── skills/                 # 6 个 Skill 模块（ingestion / retrieval / generation / ...）
+│   ├── application/use_cases/  # Use Case 编排层
+│   ├── domain/                 # 领域实体、服务、抽象接口
+│   ├── infrastructure/         # Provider 实现、存储、缓存
+│   ├── mcp/                    # MCP Server（stdio / streamable-http / sse）
+│   ├── api/                    # REST API 路由
+│   └── observability/          # Dashboard
+├── config/                     # 配置文件与 Prompt 模板
+├── data/                       # 示例文档与评测集
+├── docs/                       # 设计文档与指南
+├── tests/                      # 单元测试
+└── scripts/                    # 启动脚本
 ```
 
-## 主要能力
+## Skill 架构
 
-- FastAPI API：提供摄取、查询、答案生成、文档管理、trace 查看、评测运行等接口
-- MCP stdio server：通过官方 MCP SDK 暴露工具能力
-- Streamlit Dashboard：查看知识库状态、trace、评测结果和运行概况
-- 本地向量存储：默认使用 Chroma 持久化向量索引
-- 混合检索：包含 dense、sparse、rerank 相关配置和服务装配
+项目采用模块化 Skill 架构，6 个 Skill 可独立开关：
 
-## 环境要求
 
-- Python `3.11+`
-- 建议使用虚拟环境
-- Windows PowerShell、macOS/Linux shell 均可运行
+| Skill                   | MCP 工具                                                                             | 依赖          |
+| ----------------------- | ---------------------------------------------------------------------------------- | ----------- |
+| **ingestion**           | `knowledge_ingest`, `knowledge_status`, `rebuild_collection`, `list_collections`   | —           |
+| **retrieval**           | `knowledge_query`                                                                  | → ingestion |
+| **generation**          | `generate_answer`                                                                  | → retrieval |
+| **document_management** | `list_documents`, `get_document_detail`, `get_document_summary`, `delete_document` | —           |
+| **evaluation**          | `run_evaluation`, `list_evaluation_reports`, `get_evaluation_report`               | → retrieval |
+| **observability**       | `list_traces`, `get_trace_detail`                                                  | —           |
 
-## 安装
 
-### 创建虚拟环境
-
-**Linux / macOS:**
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-> **注意**: 在 Ubuntu/Debian 系统上，如果提示 `ensurepip is not available`，需要先安装 `python3-venv`：
->
-> ```bash
-> sudo apt install python3.venv
-> ```
-
-**Windows PowerShell:**
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-### 安装依赖
-
-本项目使用 `backend/pyproject.toml` 作为依赖入口。
-
-仅安装后端运行依赖：
-
-```bash
-pip install -e ./backend
-```
-
-安装开发依赖，包括 `pytest` 和 `streamlit`：
-
-```bash
-pip install -e ./backend[dev]
-```
-
-## 配置
-
-项目默认从本地配置文件读取运行参数。初始化时建议先从模板复制：
-
-**Linux / macOS:**
-
-```bash
-cp config/settings.yaml.example config/settings.yaml
-cp .env.example .env
-```
-
-**Windows PowerShell:**
-
-```powershell
-Copy-Item .\config\settings.yaml.example .\config\settings.yaml
-Copy-Item .\.env.example .\.env
-```
-
-当前配置模板覆盖了这些核心项：
-
-- `embedding` / `embedding_provider`
-- `llm`
-- `vector_store`
-- `ingestion`
-- `retrieval`
-- `rerank`
-- `observability`
-- `evaluation`
-- `prompts`
-- `api`
-
-默认模板里已经给出了本地开发可用的路径约定，例如：
-
-- 向量库路径：`data/vector_store/chroma_live`
-- trace 路径：`data/traces/traces.jsonl`
-- 评测报告路径：`data/evaluations/reports.jsonl`
-
-注意：
-
-- `config/settings.yaml` 属于本地运行配置，默认不提交到仓库
-- `.env` 用于保存密钥和环境变量，默认不提交到仓库
-
-## 启动方式
-
-这个仓库有三个常用入口：API、Dashboard、MCP Server。它们的用途不同，不建议混用。
-
-### 1. 启动 FastAPI 服务
-
-适合手动调试接口，或通过浏览器查看 Swagger 文档。
-
-```bash
-PYTHONPATH=backend/src uvicorn rag_mcp.main:app --reload
-```
-
-Windows PowerShell:
-
-```powershell
-$env:PYTHONPATH='backend/src'
-uvicorn rag_mcp.main:app --reload
-```
-
-启动后可访问：
-
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- Health Check: `http://127.0.0.1:8000/api/v1/health`
-
-当前 API 路由覆盖：
-
-- `/api/v1/health`
-- `/api/v1/ingest`
-- `/api/v1/query`
-- `/api/v1/answers/generate`
-- `/api/v1/documents`
-- `/api/v1/traces`
-- `/api/v1/stats`
-- `/api/v1/collections`
-- `/api/v1/evaluations`
-
-### 2. 启动 Dashboard
-
-Dashboard 依赖开发扩展中的 `streamlit`，因此需要先安装：
-
-```bash
-pip install -e ./backend[dev]
-```
-
-启动命令：
-
-```bash
-PYTHONPATH=backend/src python -m streamlit run backend/src/rag_mcp/observability/dashboard/app.py
-```
-
-Windows PowerShell:
-
-```powershell
-$env:PYTHONPATH='backend/src'
-python -m streamlit run backend/src/rag_mcp/observability/dashboard/app.py
-```
-
-如果你更希望使用仓库内脚本，也可以运行：
-
-**Linux / macOS:**
-
-```bash
-bash scripts/start_dashboard.sh
-```
-
-**Windows PowerShell:**
-
-```powershell
-.\scripts\start_dashboard.ps1
-```
-
-### 3. 启动 MCP stdio Server
-
-这个入口是给 MCP Host / Client 调用的，不适合人直接在终端里交互输入。
-
-```bash
-PYTHONPATH=backend/src python -m rag_mcp.mcp.server
-```
-
-Windows PowerShell:
-
-```powershell
-$env:PYTHONPATH='backend/src'
-python -m rag_mcp.mcp.server
-```
-
-注意：
-
-- 这是 `stdio` 协议服务
-- 直接在终端里敲回车会触发 JSON-RPC 解析错误
-- 如果你只是想验证功能，优先使用 FastAPI 或 Dashboard
+通过 `config/settings.yaml` 中的 `skills:` 配置节控制开关。
 
 ## 快速开始
 
-如果你的目标是“先把本地链路跑起来”，建议按这个顺序操作：
-
-1. 创建并激活虚拟环境
-2. 安装开发依赖：`pip install -e ./backend[dev]`
-3. 复制配置模板：`config/settings.yaml.example -> config/settings.yaml`
-4. 配置 `.env` 中的 API Key
-5. 启动 FastAPI 或 Dashboard
-
-最短调试路径通常是：
-
-**Linux / macOS:**
-
 ```bash
-source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -e ./backend[dev]
 cp config/settings.yaml.example config/settings.yaml
 cp .env.example .env
+# 编辑 .env 填入 API Key
 PYTHONPATH=backend/src uvicorn rag_mcp.main:app --reload
 ```
 
-**Windows PowerShell:**
+> 详细的安装、配置和启动说明见 [安装与运行指南](docs/setup-and-operations.md)。
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-pip install -e .\backend[dev]
-Copy-Item .\config\settings.yaml.example .\config\settings.yaml
-Copy-Item .\.env.example .\.env
-$env:PYTHONPATH='backend/src'
-uvicorn rag_mcp.main:app --reload
+## MCP 配置
+
+在 `config/settings.yaml` 中配置 MCP 传输：
+
+```yaml
+mcp:
+  server_name: "rag-mcp"
+  server_version: "0.1.0"
+  transport: "streamable-http"  # "stdio" | "streamable-http" | "sse"
+  host: "127.0.0.1"
+  port: 9000
+  mount_path: "/mcp"            # HTTP 传输的 URL 挂载路径
 ```
 
-## 测试
+## 文档索引
 
-安装开发依赖后，可在仓库根目录运行：
 
-```bash
-pytest
-```
+| 文档                                                  | 内容                |
+| --------------------------------------------------- | ----------------- |
+| [安装与运行指南](docs/setup-and-operations.md)             | 环境搭建、配置说明、三种启动方式  |
+| [技术文档](docs/技术文档.md)                                | 架构设计、模块职责、开发规范    |
+| [Skill 架构详解](docs/guides/skill-architecture.md)     | Skill 模块化组装机制     |
+| [Skill 化架构规划](docs/skill_architecture_plan.md)      | 内外部 Skill 划分与接入计划 |
+| [补全路线图](docs/roadmap.md)                            | 后续开发优先级与实施计划      |
+| [Redis 接入方案](docs/redis_integration_plan.md)        | 缓存层设计与实现          |
+| [FlyGPT 对比分析](docs/flygpt_vs_rag-mcp_comparison.md) | 两项目定位与架构差异        |
+| [MCP 协议指南](docs/guides/mcp-protocol.md)             | MCP 协议层实现         |
 
-如果你需要更稳定地解析包路径，也可以显式设置：
 
-```bash
-PYTHONPATH=backend/src pytest
-```
+## 许可
 
-Windows PowerShell:
-
-```powershell
-$env:PYTHONPATH='backend/src'
-pytest
-```
-
-## 数据与本地产物
-
-仓库当前会跟踪这些内容：
-
-- `data/documents/` 下的示例文档
-- `data/evaluations/golden_test_set.json` 评测样例
-
-默认不会提交这些本地产物：
-
-- `.env`
-- `config/settings.yaml`
-- `data/traces/`
-- `data/vector_store/`
-- 虚拟环境、缓存、IDE 配置
-
-## 文档
-
-补充资料见：
-
-- [技术文档](</d:/PersonalProject/RAG-MCP/docs/技术文档.md>)
-- [重构规划](</d:/PersonalProject/RAG-MCP/docs/RESTRUCTURE_PLAN.md>)
-
-## 当前说明
-
-当前仓库主维护对象是 `backend/` 这套实现。仓库中的本地配置、向量索引、trace、缓存文件均视为运行产物，不属于源码的一部分。
+本项目的许可证信息详见仓库根目录的 LICENSE 文件。

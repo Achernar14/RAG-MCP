@@ -1,68 +1,70 @@
-"""Dependency wiring for the MVP."""
+"""Dependency wiring -- shared infrastructure + skill-based assembly."""
 
 from __future__ import annotations
 
 import logging
 from functools import lru_cache
 
-from rag_mcp.application.use_cases.ingest_document import IngestDocumentUseCase
-from rag_mcp.application.use_cases.delete_document import DeleteDocumentUseCase
-from rag_mcp.application.use_cases.generate_answer import GenerateAnswerUseCase
-from rag_mcp.application.use_cases.get_document_detail import GetDocumentDetailUseCase
-from rag_mcp.application.use_cases.get_document_summary import GetDocumentSummaryUseCase
-from rag_mcp.application.use_cases.get_evaluation_report_detail import GetEvaluationReportDetailUseCase
-from rag_mcp.application.use_cases.get_knowledge_status import GetKnowledgeStatusUseCase
-from rag_mcp.application.use_cases.get_trace_detail import GetTraceDetailUseCase
-from rag_mcp.application.use_cases.rebuild_collection import RebuildCollectionUseCase
-from rag_mcp.application.use_cases.list_collections import ListCollectionsUseCase
-from rag_mcp.application.use_cases.list_documents import ListDocumentsUseCase
-from rag_mcp.application.use_cases.list_evaluation_reports import ListEvaluationReportsUseCase
-from rag_mcp.application.use_cases.list_traces import ListTracesUseCase
-from rag_mcp.application.use_cases.query_knowledge import QueryKnowledgeUseCase
-from rag_mcp.application.use_cases.run_evaluation import RunEvaluationUseCase
 from rag_mcp.core.settings import Settings, load_settings, resolve_project_path
+from rag_mcp.core.skill_registry import SkillRegistry
 from rag_mcp.core.tracing import JsonlTraceCollector
-from rag_mcp.infrastructure.repositories.json_evaluation_repository import JsonlEvaluationReportRepository
-from rag_mcp.domain.services.hybrid_retrieval import HybridRetrievalService
-from rag_mcp.domain.services.retrieval import RetrievalService
-from rag_mcp.infrastructure.loaders.compound_loader import CompoundDocumentLoader
-from rag_mcp.infrastructure.loaders.pdf_loader import PdfDocumentLoader
-from rag_mcp.infrastructure.loaders.text_loader import TextDocumentLoader
-from rag_mcp.infrastructure.ingestion.source_inspector import LocalSourceInspector
-from rag_mcp.infrastructure.ingestion.source_validator import LocalSourceValidator
-from rag_mcp.infrastructure.pipeline import IngestionPipeline
-from rag_mcp.infrastructure.prompts.answer_prompt_builder import AnswerPromptBuilder
-from rag_mcp.infrastructure.prompts.template_loader import FilePromptTemplateLoader
 from rag_mcp.infrastructure.providers.factories import (
     create_embedding_provider,
     create_llm_provider,
     create_reranker,
     create_vision_llm_provider,
 )
+from rag_mcp.infrastructure.repositories.json_evaluation_repository import (
+    JsonlEvaluationReportRepository,
+)
 from rag_mcp.infrastructure.repositories.json_repositories import (
     JsonChunkRepository,
     JsonDocumentRepository,
 )
-from rag_mcp.infrastructure.repositories.jsonl_trace_repository import JsonlTraceRepository
+from rag_mcp.infrastructure.repositories.jsonl_trace_repository import (
+    JsonlTraceRepository,
+)
 from rag_mcp.infrastructure.sparse.bm25_store import JsonBm25Store
-from rag_mcp.infrastructure.splitters.simple_splitter import SimpleTextSplitter
 from rag_mcp.infrastructure.vector_store.chroma_store import ChromaVectorStore
 from rag_mcp.infrastructure.vector_store.memory_store import InMemoryVectorStore
-from rag_mcp.infrastructure.vector_store.weaviate_store import WeaviateVectorStore
 
 logger = logging.getLogger(__name__)
 
 
+def _create_skill_registry() -> SkillRegistry:
+    """Create and populate the skill registry with all built-in skills."""
+    registry = SkillRegistry()
+
+    from rag_mcp.skills.ingestion import IngestionSkill
+    from rag_mcp.skills.retrieval import RetrievalSkill
+    from rag_mcp.skills.generation import GenerationSkill
+    from rag_mcp.skills.document_management import DocumentManagementSkill
+    from rag_mcp.skills.evaluation import EvaluationSkill
+    from rag_mcp.skills.observability import ObservabilitySkill
+
+    registry.register(IngestionSkill)
+    registry.register(RetrievalSkill)
+    registry.register(GenerationSkill)
+    registry.register(DocumentManagementSkill)
+    registry.register(EvaluationSkill)
+    registry.register(ObservabilitySkill)
+
+    return registry
+
+
 class ApplicationContainer:
-    """Owns singleton components used by the MVP."""
+    """Owns singleton components -- shared infrastructure + per-skill use cases."""
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
+
+        # --- Phase A: Shared infrastructure (always wired) ---
         vs = self.settings.vector_store
         if vs.provider.lower() == "weaviate":
             vector_store_dir = resolve_project_path(vs.weaviate_persistence_data_path).parent
         else:
             vector_store_dir = resolve_project_path(vs.persist_path).parent
+
         self.trace_collector = JsonlTraceCollector(
             resolve_project_path(settings.observability.trace_path)
         )
@@ -89,119 +91,32 @@ class ApplicationContainer:
         self._redis_cache = self._create_redis_cache()
         self.embedding_provider = self._create_embedding_with_cache()
 
-        self.prompt_template_loader = FilePromptTemplateLoader()
-        self.answer_prompt_builder = AnswerPromptBuilder(
-            template_loader=self.prompt_template_loader,
-            system_prompt_path=self.settings.prompts.answer_system_prompt_path,
-            user_prompt_path=self.settings.prompts.answer_user_prompt_path,
-        )
-        self.loader = CompoundDocumentLoader(
-            text_loader=TextDocumentLoader(),
-            pdf_loader=PdfDocumentLoader(),
-        )
-        self.source_inspector = LocalSourceInspector()
-        self.source_validator = LocalSourceValidator(
-            supported_extensions=settings.ingestion.supported_extensions,
-            max_file_size_bytes=settings.ingestion.max_file_size_bytes,
-            allow_hidden_files=settings.ingestion.allow_hidden_files,
-        )
-        self.splitter = SimpleTextSplitter(
-            chunk_size=settings.ingestion.chunk_size,
-            chunk_overlap=settings.ingestion.chunk_overlap,
-            normalize_whitespace=settings.ingestion.normalize_whitespace,
-            preserve_paragraph_breaks=settings.ingestion.preserve_paragraph_breaks,
-            boundary_scan_chars=settings.ingestion.boundary_scan_chars,
-            min_chunk_length=settings.ingestion.min_chunk_length,
-        )
-        self.pipeline = IngestionPipeline(
-            loader=self.loader,
-            splitter=self.splitter,
-            embedding_provider=self.embedding_provider,
-            document_repository=self.document_repository,
-            chunk_repository=self.chunk_repository,
-            vector_store=self.vector_store,
-            sparse_index=self.sparse_index,
-            trace_collector=self.trace_collector,
-            source_inspector=self.source_inspector,
-            source_validator=self.source_validator,
-        )
-        self.retrieval_service = HybridRetrievalService(
-            embedding_provider=self.embedding_provider,
-            vector_store=self.vector_store,
-            sparse_index=self.sparse_index,
-            settings=settings.retrieval,
-            reranker=self.reranker,
-            redis_cache=self._redis_cache if self.settings.redis.cache.retrieval_enabled else None,
-        )
-        self.dense_retrieval_service = RetrievalService(
-            embedding_provider=self.embedding_provider,
-            vector_store=self.vector_store,
-        )
-        self.ingest_use_case = IngestDocumentUseCase(self.pipeline)
-        self.query_use_case = QueryKnowledgeUseCase(
-            retrieval_service=self.retrieval_service,
-            trace_collector=self.trace_collector,
-        )
-        self.generate_answer_use_case = GenerateAnswerUseCase(
-            query_use_case=self.query_use_case,
-            llm_provider=self.llm_provider,
-            trace_collector=self.trace_collector,
-            answer_prompt_builder=self.answer_prompt_builder,
-        )
-        self.get_document_summary_use_case = GetDocumentSummaryUseCase(
-            document_repository=self.document_repository,
-            chunk_repository=self.chunk_repository,
-        )
-        self.get_document_detail_use_case = GetDocumentDetailUseCase(
-            document_repository=self.document_repository,
-            chunk_repository=self.chunk_repository,
-        )
-        self.list_traces_use_case = ListTracesUseCase(
-            trace_repository=self.trace_repository,
-        )
-        self.get_trace_detail_use_case = GetTraceDetailUseCase(
-            trace_repository=self.trace_repository,
-        )
-        self.list_documents_use_case = ListDocumentsUseCase(
-            document_repository=self.document_repository,
-            chunk_repository=self.chunk_repository,
-        )
-        self.delete_document_use_case = DeleteDocumentUseCase(
-            document_repository=self.document_repository,
-            chunk_repository=self.chunk_repository,
-            vector_store=self.vector_store,
-            sparse_index=self.sparse_index,
-        )
-        self.knowledge_status_use_case = GetKnowledgeStatusUseCase(
-            settings=self.settings,
-            document_repository=self.document_repository,
-            chunk_repository=self.chunk_repository,
-            sparse_index=self.sparse_index,
-        )
-        self.rebuild_collection_use_case = RebuildCollectionUseCase(
-            settings=self.settings,
-            document_repository=self.document_repository,
-            pipeline=self.pipeline,
-            trace_collector=self.trace_collector,
-        )
-        self.list_collections_use_case = ListCollectionsUseCase(
-            settings=self.settings,
-            document_repository=self.document_repository,
-            chunk_repository=self.chunk_repository,
-            sparse_index=self.sparse_index,
-        )
-        self.run_evaluation_use_case = RunEvaluationUseCase(
-            settings=self.settings,
-            query_use_case=self.query_use_case,
-            evaluation_report_repository=self.evaluation_report_repository,
-            trace_collector=self.trace_collector,
-        )
-        self.list_evaluation_reports_use_case = ListEvaluationReportsUseCase(
-            evaluation_report_repository=self.evaluation_report_repository,
-        )
-        self.get_evaluation_report_detail_use_case = GetEvaluationReportDetailUseCase(
-            evaluation_report_repository=self.evaluation_report_repository,
-        )
+        # --- Phase B: Per-skill wiring (conditional) ---
+        self._skill_registry = _create_skill_registry()
+        self._enable_skills_from_settings()
+        self._skill_registry.wire_all(self, settings)
+
+    # -- Skill management --
+
+    @property
+    def skill_registry(self) -> SkillRegistry:
+        return self._skill_registry
+
+    def _enable_skills_from_settings(self) -> None:
+        flags = self.settings.skills
+        mapping = {
+            "ingestion": flags.ingestion,
+            "retrieval": flags.retrieval,
+            "generation": flags.generation,
+            "document_management": flags.document_management,
+            "evaluation": flags.evaluation,
+            "observability": flags.observability,
+        }
+        for name, enabled in mapping.items():
+            if enabled:
+                self._skill_registry.enable(name)
+
+    # -- Resource management --
 
     def close(self) -> None:
         """Release resources held by the container."""
@@ -210,6 +125,8 @@ class ApplicationContainer:
             close_method()
         if self._redis_client is not None:
             self._redis_client.close()
+
+    # -- Shared infrastructure factories --
 
     def _create_redis_cache(self):
         """Create a RedisCacheService if Redis is enabled and reachable."""
@@ -258,6 +175,7 @@ class ApplicationContainer:
                 collection_name=self.settings.vector_store.collection_name,
             )
         if provider == "weaviate":
+            from rag_mcp.infrastructure.vector_store.weaviate_store import WeaviateVectorStore
             return WeaviateVectorStore(
                 persistence_data_path=str(
                     resolve_project_path(
