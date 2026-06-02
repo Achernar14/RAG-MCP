@@ -279,13 +279,6 @@ pytest
 - `data/vector_store/`
 - 虚拟环境、缓存、IDE 配置
 
-## 文档
-
-补充资料见：
-
-- [技术文档](</d:/PersonalProject/RAG-MCP/docs/技术文档.md>)
-- [重构规划](</d:/PersonalProject/RAG-MCP/docs/RESTRUCTURE_PLAN.md>)
-
 ## 当前说明
 
 当前仓库主维护对象是 `backend/` 这套实现。仓库中的本地配置、向量索引、trace、缓存文件均视为运行产物，不属于源码的一部分。
