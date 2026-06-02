@@ -92,6 +92,10 @@ prompts:
 mcp:
   server_name: "rag-mcp"
   server_version: "0.1.0"
+  transport: "streamable-http"  # "stdio" | "streamable-http" | "sse"
+  host: "127.0.0.1"
+  port: 9000
+  mount_path: "/mcp"
 
 api:
   host: "127.0.0.1"

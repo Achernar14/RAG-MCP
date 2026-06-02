@@ -132,6 +132,10 @@ class PromptSettings(BaseModel):
 class McpSettings(BaseModel):
     server_name: str = "rag-mcp"
     server_version: str = "0.1.0"
+    transport: str = "stdio"  # "stdio" | "streamable-http" | "sse"
+    host: str = "127.0.0.1"
+    port: int = 9000
+    mount_path: str = "/mcp"  # URL path for HTTP transports
 
 
 class ApiSettings(BaseModel):
@@ -158,6 +162,17 @@ class RedisSettings(BaseModel):
     cache: RedisCacheSettings = Field(default_factory=RedisCacheSettings)
 
 
+class SkillSettings(BaseModel):
+    """Per-skill enablement flags."""
+
+    ingestion: bool = True
+    retrieval: bool = True
+    generation: bool = True
+    document_management: bool = True
+    evaluation: bool = True
+    observability: bool = True
+
+
 class Settings(BaseModel):
     app: AppSettings = Field(default_factory=AppSettings)
     embedding: EmbeddingSettings = Field(default_factory=EmbeddingSettings)
@@ -174,6 +189,7 @@ class Settings(BaseModel):
     mcp: McpSettings = Field(default_factory=McpSettings)
     api: ApiSettings = Field(default_factory=ApiSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
+    skills: SkillSettings = Field(default_factory=SkillSettings)
 
 
 def ensure_default_config() -> Path:
