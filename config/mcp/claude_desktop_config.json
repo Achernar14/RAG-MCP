@@ -1,0 +1,13 @@
+{
+  "_comment": "Claude Desktop MCP 配置模板。将本文件内容合并到你的 Claude Desktop 配置文件中。配置文件位置：macOS 为 ~/Library/Application Support/Claude/claude_desktop_config.json；Windows 为 %APPDATA%\\Claude\\claude_desktop_config.json。修改后需重启 Claude Desktop 生效。",
+  "_prerequisites": "1) 已在 backend/ 目录执行 pip install -e . 安装项目；2) 项目根目录 .env 已填写真实的 ZHIPU_API_KEY 和 DEEPSEEK_API_KEY；3) 下方 command 需指向可用的 python 解释器（建议用虚拟环境的完整路径）。",
+  "mcpServers": {
+    "rag-mcp": {
+      "command": "python",
+      "args": ["-m", "rag_mcp.mcp.server"],
+      "_command_note_macos": "macOS 示例：command 改为 /Users/<你>/.venv/bin/python",
+      "_command_note_windows": "Windows 示例：command 改为 C:\\Users\\<你>\\path\\to\\.venv\\Scripts\\python.exe",
+      "_transport_note": "默认走 stdio 传输（settings.yaml 中 mcp.transport 未覆盖时的默认值）。无需额外配置端口。"
+    }
+  }
+}
