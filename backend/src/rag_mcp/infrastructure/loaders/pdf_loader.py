@@ -9,11 +9,20 @@ from pypdf import PdfReader
 
 from rag_mcp.core.exceptions import IngestionError
 from rag_mcp.domain.entities.models import Document
-from rag_mcp.infrastructure.loaders.file_metadata import build_file_metadata
+from rag_mcp.infrastructure.loaders.file_metadata import (
+    build_file_metadata,
+    streaming_file_sha256,
+)
 
 
 class PdfDocumentLoader:
-    """Load text content from PDF documents."""
+    """Load text content from PDF documents.
+
+    File bytes are **never** loaded into memory in one shot.  The raw-file
+    SHA-256 fingerprint is computed via :func:`streaming_file_sha256`
+    (64 KiB chunks), and ``pypdf`` reads the file internally — so peak
+    memory is bounded by the largest page rather than the total file size.
+    """
 
     def load(self, file_path: str) -> Document:
         """Extract text from a PDF file."""
@@ -23,7 +32,10 @@ class PdfDocumentLoader:
         if path.suffix.lower() != ".pdf":
             raise IngestionError(f"Unsupported file type: {path.suffix}")
 
-        file_bytes = path.read_bytes()
+        # Compute the raw-file fingerprint without loading the whole file.
+        source_fingerprint = streaming_file_sha256(path)
+
+        # pypdf reads the file internally; we never hold the raw bytes.
         reader = PdfReader(str(path))
         content_parts: list[str] = []
         for page in reader.pages:
@@ -44,7 +56,7 @@ class PdfDocumentLoader:
             metadata=build_file_metadata(
                 path,
                 content=content,
-                file_bytes=file_bytes,
+                source_bytes_fingerprint=source_fingerprint,
                 loader_name=self.__class__.__name__,
                 extra={
                     "page_count": len(reader.pages),

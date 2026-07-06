@@ -25,6 +25,7 @@ class TextDocumentLoader:
 
         file_bytes = path.read_bytes()
         content = file_bytes.decode("utf-8")
+        source_fingerprint = hashlib.sha256(file_bytes).hexdigest()
         document_id = hashlib.sha256(str(path.resolve()).encode("utf-8")).hexdigest()
         return Document(
             id=document_id,
@@ -35,7 +36,7 @@ class TextDocumentLoader:
             metadata=build_file_metadata(
                 path,
                 content=content,
-                file_bytes=file_bytes,
+                source_bytes_fingerprint=source_fingerprint,
                 loader_name=self.__class__.__name__,
             ),
         )

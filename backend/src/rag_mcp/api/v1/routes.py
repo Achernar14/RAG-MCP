@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 
 from rag_mcp.api.auth import verify_api_key
 from rag_mcp.application.dto.models import (
@@ -101,6 +104,37 @@ def generate_answer(request: GenerateAnswerRequest) -> dict:
     _require_skill("generation")
     response = get_container().generate_answer_use_case.execute(request)
     return {"code": 0, "message": "ok", "data": response.model_dump(), "trace_id": response.trace_id}
+
+
+@router.post("/answers/stream")
+def stream_answer(request: GenerateAnswerRequest):
+    """Stream a grounded answer via Server-Sent Events.
+
+    Returns ``text/event-stream`` with the following event types:
+
+    * ``meta`` — trace metadata (once)
+    * ``sources`` — retrieved source items (once)
+    * ``token`` — text delta chunks (zero or more)
+    * ``done`` — successful completion (once)
+    * ``error`` — provider error with fallback (once, on failure)
+    """
+    _require_skill("generation")
+
+    def _sse_generator():
+        for event in get_container().generate_answer_use_case.execute_stream(request):
+            event_type = event["event"]
+            payload = json.dumps(event["data"], ensure_ascii=False)
+            yield f"event: {event_type}\ndata: {payload}\n\n"
+
+    return StreamingResponse(
+        _sse_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # -- Document management skill routes --

@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 
 class StubLlmProvider:
     """Generate deterministic answers from provided retrieval context."""
 
     model = "stub"
 
-    def generate(
+    # ── shared answer builder ───────────────────────────────────────────
+
+    def _build_answer(
         self,
         prompt: str,
-        *,
         system_prompt: str | None = None,
         metadata: dict | None = None,
     ) -> str:
-        """Return a simple answer based on supplied context metadata."""
+        """Build the full answer from retrieval context."""
         metadata = metadata or {}
         sources = metadata.get("sources", [])
         query = metadata.get("query", "")
@@ -33,3 +36,37 @@ class StubLlmProvider:
 
         joined = " ".join(snippets)
         return f"Grounded answer for '{query}': {joined}"
+
+    # ── synchronous generation ──────────────────────────────────────────
+
+    def generate(
+        self,
+        prompt: str,
+        *,
+        system_prompt: str | None = None,
+        metadata: dict | None = None,
+    ) -> str:
+        """Return a simple answer based on supplied context metadata."""
+        return self._build_answer(prompt, system_prompt, metadata)
+
+    # ── streaming generation ────────────────────────────────────────────
+
+    def generate_stream(
+        self,
+        prompt: str,
+        *,
+        system_prompt: str | None = None,
+        metadata: dict | None = None,
+    ) -> Iterator[str]:
+        """Simulate token-by-token streaming for development and tests.
+
+        Splits the stub answer into word-level chunks (preserving
+        whitespace between words) so that SSE consumers see incremental
+        output similar to a real streaming LLM.
+        """
+        full = self._build_answer(prompt, system_prompt, metadata)
+        # Split on word boundaries while preserving spaces
+        words = full.split(" ")
+        for i, word in enumerate(words):
+            chunk = word if i == 0 else f" {word}"
+            yield chunk

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 
 from rag_mcp.domain.entities.models import (
     Chunk,
@@ -33,6 +34,16 @@ class LlmProvider(ABC):
         metadata: dict | None = None,
     ) -> str:
         """Generate a completion from a prompt."""
+
+    @abstractmethod
+    def generate_stream(
+        self,
+        prompt: str,
+        *,
+        system_prompt: str | None = None,
+        metadata: dict | None = None,
+    ) -> Iterator[str]:
+        """Stream completion tokens as an iterator of delta strings."""
 
 
 class DocumentRepository(ABC):
