@@ -67,22 +67,16 @@ class DocumentManagementSkill:
         from rag_mcp.application.use_cases.delete_document import DeleteDocumentUseCase
 
         container.list_documents_use_case = ListDocumentsUseCase(
-            document_repository=container.document_repository,
-            chunk_repository=container.chunk_repository,
+            collection_manager=container.collection_manager,
         )
         container.get_document_detail_use_case = GetDocumentDetailUseCase(
-            document_repository=container.document_repository,
-            chunk_repository=container.chunk_repository,
+            collection_manager=container.collection_manager,
         )
         container.get_document_summary_use_case = GetDocumentSummaryUseCase(
-            document_repository=container.document_repository,
-            chunk_repository=container.chunk_repository,
+            collection_manager=container.collection_manager,
         )
         container.delete_document_use_case = DeleteDocumentUseCase(
-            document_repository=container.document_repository,
-            chunk_repository=container.chunk_repository,
-            vector_store=container.vector_store,
-            sparse_index=container.sparse_index,
+            collection_manager=container.collection_manager,
         )
 
     @staticmethod

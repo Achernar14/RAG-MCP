@@ -9,17 +9,17 @@ from rag_mcp.core.exceptions import NotFoundError
 class GetDocumentSummaryUseCase:
     """Return a summary view of a document and its chunks."""
 
-    def __init__(self, document_repository, chunk_repository) -> None:
-        self.document_repository = document_repository
-        self.chunk_repository = chunk_repository
+    def __init__(self, collection_manager) -> None:
+        self.collection_manager = collection_manager
 
-    def execute(self, document_id: str) -> DocumentSummaryResponse:
+    def execute(self, document_id: str, collection_name: str | None = None) -> DocumentSummaryResponse:
         """Build a summary response for the requested document."""
-        document = self.document_repository.get(document_id)
+        scope = self.collection_manager.get_scope(collection_name)
+        document = scope.document_repository.get(document_id)
         if document is None:
             raise NotFoundError(f"Document not found: {document_id}")
 
-        chunks = self.chunk_repository.list_by_document(document_id)
+        chunks = scope.chunk_repository.list_by_document(document_id)
         summary = self._build_summary(document.content)
         return DocumentSummaryResponse(
             document_id=document.id,
@@ -36,4 +36,3 @@ class GetDocumentSummaryUseCase:
         if len(normalized) <= max_length:
             return normalized
         return normalized[: max_length - 3].rstrip() + "..."
-

@@ -67,9 +67,9 @@ class VisionLlmSettings(BaseModel):
 
 
 class VectorStoreSettings(BaseModel):
-    provider: str = "weaviate"
-    persist_path: str = "data/vector_store/chroma"
-    collection_name: str = "RAG_MCP"
+    provider: str = "chroma"
+    persist_path: str = "data/vector_store/chroma_live"
+    collection_name: str = "rag_mcp_live"
 
     # Weaviate mode: "embedded" (Linux/macOS only) or "remote" (cross-platform)
     weaviate_mode: str = "embedded"
@@ -92,7 +92,7 @@ class IngestionSettings(BaseModel):
     preserve_paragraph_breaks: bool = True
     boundary_scan_chars: int = 80
     min_chunk_length: int = 40
-    supported_extensions: list[str] = Field(default_factory=lambda: [".txt", ".md", ".pdf"])
+    supported_extensions: list[str] = Field(default_factory=lambda: [".txt", ".md", ".pdf", ".html", ".htm"])
     max_file_size_bytes: int = 20 * 1024 * 1024
     allow_hidden_files: bool = False
 

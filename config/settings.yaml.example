@@ -76,6 +76,8 @@ ingestion:
     - ".txt"
     - ".md"
     - ".pdf"
+    - ".html"
+    - ".htm"
 
 retrieval:
   top_k: 5

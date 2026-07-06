@@ -50,10 +50,10 @@ def ingest_document(request: IngestRequest) -> dict:
 
 
 @router.get("/stats")
-def get_knowledge_status() -> dict:
+def get_knowledge_status(collection_name: str | None = None) -> dict:
     """Return aggregate statistics for the active knowledge base."""
     _require_skill("ingestion")
-    response = get_container().knowledge_status_use_case.execute()
+    response = get_container().knowledge_status_use_case.execute(collection_name)
     return {"code": 0, "message": "ok", "data": response.model_dump(), "trace_id": None}
 
 
@@ -107,42 +107,42 @@ def generate_answer(request: GenerateAnswerRequest) -> dict:
 
 
 @router.get("/documents")
-def list_documents() -> dict:
+def list_documents(collection_name: str | None = None) -> dict:
     """List ingested documents."""
     _require_skill("document_management")
-    response = get_container().list_documents_use_case.execute()
+    response = get_container().list_documents_use_case.execute(collection_name)
     payload = [item.model_dump(mode="json") for item in response]
     return {"code": 0, "message": "ok", "data": payload, "trace_id": None}
 
 
 @router.get("/documents/{document_id}")
-def get_document_summary(document_id: str) -> dict:
+def get_document_summary(document_id: str, collection_name: str | None = None) -> dict:
     """Get a summary view of an ingested document."""
     _require_skill("document_management")
     try:
-        response = get_container().get_document_summary_use_case.execute(document_id)
+        response = get_container().get_document_summary_use_case.execute(document_id, collection_name)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"code": 0, "message": "ok", "data": response.model_dump(), "trace_id": None}
 
 
 @router.get("/documents/{document_id}/detail")
-def get_document_detail(document_id: str) -> dict:
+def get_document_detail(document_id: str, collection_name: str | None = None) -> dict:
     """Get a detailed view of an ingested document."""
     _require_skill("document_management")
     try:
-        response = get_container().get_document_detail_use_case.execute(document_id)
+        response = get_container().get_document_detail_use_case.execute(document_id, collection_name)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"code": 0, "message": "ok", "data": response.model_dump(mode="json"), "trace_id": None}
 
 
 @router.delete("/documents/{document_id}")
-def delete_document(document_id: str) -> dict:
+def delete_document(document_id: str, collection_name: str | None = None) -> dict:
     """Delete a document and its associated indexes."""
     _require_skill("document_management")
     try:
-        response = get_container().delete_document_use_case.execute(document_id)
+        response = get_container().delete_document_use_case.execute(document_id, collection_name)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"code": 0, "message": "ok", "data": response.model_dump(), "trace_id": None}

@@ -1,4 +1,8 @@
-"""DeepSeek chat completion provider."""
+"""OpenAI-compatible chat completion provider.
+
+This is a generic provider that works with any OpenAI-compatible API
+(DeepSeek, OpenAI, LiteLLM proxy, Synapse, OpenRouter, etc.).
+"""
 
 from __future__ import annotations
 
@@ -8,8 +12,12 @@ from rag_mcp.core.exceptions import ProviderError
 from rag_mcp.infrastructure.providers.utils import require_env_value
 
 
-class DeepSeekLlmProvider:
-    """Call the DeepSeek OpenAI-compatible chat completions API."""
+class OpenAICompatibleLlmProvider:
+    """Call an OpenAI-compatible chat completions API.
+
+    Works with any provider that exposes a ``/chat/completions`` endpoint
+    (OpenAI, DeepSeek, LiteLLM, Synapse, OpenRouter, local vLLM, etc.).
+    """
 
     def __init__(
         self,
@@ -22,7 +30,7 @@ class DeepSeekLlmProvider:
         timeout_seconds: float,
     ) -> None:
         self.api_base = (api_base or "https://api.deepseek.com").rstrip("/")
-        self.api_key = require_env_value(api_key_env, provider_name="deepseek llm")
+        self.api_key = require_env_value(api_key_env, provider_name="openai-compatible llm")
         self.model = model or "deepseek-chat"
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -62,4 +70,4 @@ class DeepSeekLlmProvider:
             data = response.json()
             return data["choices"][0]["message"]["content"].strip()
         except Exception as exc:
-            raise ProviderError(f"DeepSeek generation request failed: {exc}") from exc
+            raise ProviderError(f"OpenAI-compatible generation request failed: {exc}") from exc

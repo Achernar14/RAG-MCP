@@ -66,6 +66,7 @@ class IngestionSkill:
         from rag_mcp.application.use_cases.rebuild_collection import RebuildCollectionUseCase
         from rag_mcp.application.use_cases.list_collections import ListCollectionsUseCase
         from rag_mcp.infrastructure.loaders.compound_loader import CompoundDocumentLoader
+        from rag_mcp.infrastructure.loaders.confluence_loader import ConfluenceDocumentLoader
         from rag_mcp.infrastructure.loaders.pdf_loader import PdfDocumentLoader
         from rag_mcp.infrastructure.loaders.text_loader import TextDocumentLoader
         from rag_mcp.infrastructure.ingestion.source_inspector import LocalSourceInspector
@@ -76,6 +77,7 @@ class IngestionSkill:
         container.loader = CompoundDocumentLoader(
             text_loader=TextDocumentLoader(),
             pdf_loader=PdfDocumentLoader(),
+            confluence_loader=ConfluenceDocumentLoader(),
         )
         container.source_inspector = LocalSourceInspector()
         container.source_validator = LocalSourceValidator(
@@ -102,25 +104,22 @@ class IngestionSkill:
             trace_collector=container.trace_collector,
             source_inspector=container.source_inspector,
             source_validator=container.source_validator,
+            collection_manager=container.collection_manager,
         )
         container.ingest_use_case = IngestDocumentUseCase(container.pipeline)
         container.knowledge_status_use_case = GetKnowledgeStatusUseCase(
             settings=settings,
-            document_repository=container.document_repository,
-            chunk_repository=container.chunk_repository,
-            sparse_index=container.sparse_index,
+            collection_manager=container.collection_manager,
         )
         container.rebuild_collection_use_case = RebuildCollectionUseCase(
             settings=settings,
-            document_repository=container.document_repository,
+            collection_manager=container.collection_manager,
             pipeline=container.pipeline,
             trace_collector=container.trace_collector,
         )
         container.list_collections_use_case = ListCollectionsUseCase(
             settings=settings,
-            document_repository=container.document_repository,
-            chunk_repository=container.chunk_repository,
-            sparse_index=container.sparse_index,
+            collection_manager=container.collection_manager,
         )
 
     # -- Tool handlers --

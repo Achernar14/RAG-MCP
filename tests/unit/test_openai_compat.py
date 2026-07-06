@@ -1,6 +1,6 @@
 """Unit tests for OpenAI-compatible endpoint URL construction.
 
-Covers the URL concatenation convention used by DeepSeekLlmProvider
+Covers the URL concatenation convention used by OpenAICompatibleLlmProvider
 (and any future OpenAI-compatible LLM provider).
 """
 
@@ -20,7 +20,7 @@ class TestApiBaseUrlConvention:
 
     @staticmethod
     def _build_url(api_base: str) -> str:
-        """Replicate the URL construction from DeepSeekLlmProvider."""
+        """Replicate the URL construction from OpenAICompatibleLlmProvider."""
         cleaned = api_base.rstrip("/")
         return f"{cleaned}/chat/completions"
 

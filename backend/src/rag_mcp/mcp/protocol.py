@@ -1,9 +1,22 @@
-"""Compatibility MCP protocol adapter.
+"""Compatibility MCP protocol adapter (TRANSITIONAL — prefer sdk_server.py).
 
-The default stdio runtime is now provided by the official MCP Python SDK.
-This module remains only as a transitional compatibility layer for:
-1. legacy local messages shaped like {"tool": "...", "arguments": {...}}
-2. synchronous JSON-RPC adapter tests that still call handle_message(...)
+The canonical MCP server wiring lives in ``sdk_server.py`` (FastMCP-based).
+This module is a **compatibility shim** that wraps the SDK server for:
+
+1. Legacy local messages shaped like ``{"tool": "...", "arguments": {...}}``
+2. Synchronous JSON-RPC adapter tests that still call ``handle_message(...)``
+3. Line-delimited stdio loop (``run_stdio_loop``) for pre-SDK clients
+
+**Relationship to sdk_server.py**: All tool discovery and execution is
+delegated to ``create_fastmcp_server()`` from ``sdk_server.py`` — this module
+only handles wire-format translation (JSON-RPC envelopes, legacy payloads).
+There is no duplication; the two modules operate at different layers:
+
+* ``sdk_server.py`` — MCP server instance + tool registration (application layer)
+* ``protocol.py``   — wire-format adapters + legacy compat (presentation layer)
+
+New code should use ``sdk_server.py`` directly.  This module will be removed
+in a future major version once all callers have migrated.
 """
 
 from __future__ import annotations

@@ -6,23 +6,24 @@ from rag_mcp.application.dto.models import KnowledgeStatusResponse
 
 
 class GetKnowledgeStatusUseCase:
-    """Return operational statistics for the active collection."""
+    """Return operational statistics for a collection."""
 
-    def __init__(self, settings, document_repository, chunk_repository, sparse_index) -> None:
+    def __init__(self, settings, collection_manager) -> None:
         self.settings = settings
-        self.document_repository = document_repository
-        self.chunk_repository = chunk_repository
-        self.sparse_index = sparse_index
+        self.collection_manager = collection_manager
 
-    def execute(self) -> KnowledgeStatusResponse:
-        """Build a status summary from the current repositories."""
-        documents = self.document_repository.list_all()
-        chunk_count = sum(len(self.chunk_repository.list_by_document(doc.id)) for doc in documents)
+    def execute(self, collection_name: str | None = None) -> KnowledgeStatusResponse:
+        """Build a status summary from the collection's repositories."""
+        scope = self.collection_manager.get_scope(collection_name)
+        documents = scope.document_repository.list_all()
+        chunk_count = sum(
+            len(scope.chunk_repository.list_by_document(doc.id)) for doc in documents
+        )
         return KnowledgeStatusResponse(
-            collection_name=self.settings.vector_store.collection_name,
+            collection_name=scope.name,
             document_count=len(documents),
             chunk_count=chunk_count,
             vector_store_provider=self.settings.vector_store.provider,
             embedding_provider=self.settings.embedding.provider,
-            sparse_index_present=self.sparse_index.exists(),
+            sparse_index_present=scope.sparse_index.exists(),
         )

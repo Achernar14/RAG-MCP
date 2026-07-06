@@ -8,14 +8,14 @@ from rag_mcp.application.dto.models import DocumentListItemResponse
 class ListDocumentsUseCase:
     """Return document list items with lightweight statistics."""
 
-    def __init__(self, document_repository, chunk_repository) -> None:
-        self.document_repository = document_repository
-        self.chunk_repository = chunk_repository
+    def __init__(self, collection_manager) -> None:
+        self.collection_manager = collection_manager
 
-    def execute(self) -> list[DocumentListItemResponse]:
+    def execute(self, collection_name: str | None = None) -> list[DocumentListItemResponse]:
         """List all ingested documents with per-document chunk counts."""
+        scope = self.collection_manager.get_scope(collection_name)
         documents = sorted(
-            self.document_repository.list_all(),
+            scope.document_repository.list_all(),
             key=lambda item: item.updated_at,
             reverse=True,
         )
@@ -25,7 +25,7 @@ class ListDocumentsUseCase:
                 filename=document.filename,
                 source_path=document.source_path,
                 doc_type=document.doc_type,
-                chunk_count=len(self.chunk_repository.list_by_document(document.id)),
+                chunk_count=len(scope.chunk_repository.list_by_document(document.id)),
                 created_at=document.created_at,
                 updated_at=document.updated_at,
             )

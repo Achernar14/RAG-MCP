@@ -15,12 +15,9 @@ def reset_state(tmp_path, monkeypatch):
         "app": {"name": "rag-mcp", "environment": "test"},
         "embedding": {"provider": "hash", "dimensions": 64},
         "vector_store": {
-            "provider": "weaviate",
+            "provider": "chroma",
             "collection_name": "TestRAGMCP",
-            "weaviate_persistence_data_path": str(runtime_root / "vector_store" / "weaviate"),
-            "weaviate_version": "1.37.2",
-            "weaviate_hostname": "127.0.0.1",
-            "weaviate_port": 8079,
+            "persist_path": str(runtime_root / "vector_store" / "chroma_live"),
         },
         "ingestion": {
             "chunk_size": 500,
@@ -86,12 +83,9 @@ def test_app_no_mcp_mount_when_stdio(tmp_path, monkeypatch):
         "app": {"name": "rag-mcp", "environment": "test"},
         "embedding": {"provider": "hash", "dimensions": 64},
         "vector_store": {
-            "provider": "weaviate",
+            "provider": "chroma",
             "collection_name": "TestRAGMCP",
-            "weaviate_persistence_data_path": str(tmp_path / "runtime" / "vector_store" / "weaviate"),
-            "weaviate_version": "1.37.2",
-            "weaviate_hostname": "127.0.0.1",
-            "weaviate_port": 8079,
+            "persist_path": str(tmp_path / "runtime" / "vector_store" / "chroma_live"),
         },
         "ingestion": {
             "chunk_size": 500,

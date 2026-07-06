@@ -12,6 +12,7 @@ class IngestRequest(BaseModel):
 
     path: str
     force_rebuild: bool = False
+    collection_name: str | None = None
 
 
 class IngestResponse(BaseModel):
@@ -29,6 +30,7 @@ class QueryRequest(BaseModel):
 
     query: str = Field(min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
+    collection_name: str | None = None
 
 
 class QuerySourceDto(BaseModel):
@@ -68,6 +70,7 @@ class GenerateAnswerRequest(BaseModel):
 
     query: str = Field(min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
+    collection_name: str | None = None
 
 
 class GenerateAnswerResponse(BaseModel):

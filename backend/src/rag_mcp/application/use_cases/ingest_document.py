@@ -16,12 +16,17 @@ class IngestDocumentUseCase:
         """Execute the ingestion flow."""
         trace = TraceContext(
             trace_type="ingestion",
-            metadata={"path": request.path, "force_rebuild": request.force_rebuild},
+            metadata={
+                "path": request.path,
+                "force_rebuild": request.force_rebuild,
+                "collection_name": request.collection_name,
+            },
         )
         result = self.pipeline.run(
             file_path=request.path,
             trace=trace,
             replace_existing=request.force_rebuild,
+            collection_name=request.collection_name,
         )
         trace.finish()
         return IngestResponse(

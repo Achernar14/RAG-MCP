@@ -54,6 +54,7 @@ class IngestionPipeline:
         trace_collector,
         source_inspector=None,
         source_validator=None,
+        collection_manager=None,  # optional — enables multi-collection ingestion
     ) -> None:
         self.loader = loader
         self.splitter = splitter
@@ -65,27 +66,60 @@ class IngestionPipeline:
         self.trace_collector = trace_collector
         self.source_inspector = source_inspector
         self.source_validator = source_validator
+        self.collection_manager = collection_manager
 
-    def run(self, file_path: str, trace, *, replace_existing: bool = False) -> PipelineResult:
-        """Execute the full MVP ingestion flow."""
-        validated_path = self._validate_source(file_path, trace)
-        precheck = self._precheck_skip(str(validated_path), trace, replace_existing=replace_existing)
-        if precheck is not None:
-            return precheck
-        document = self._load_document(str(validated_path), trace)
-        decision = self._decide_ingestion_action(document, trace, replace_existing=replace_existing)
-        if decision.action == "skipped":
-            return self._finish_skipped_ingestion(document, decision, trace)
-        prepared = self.prepare(document, trace)
-        return self.persist(prepared, trace, decision=decision)
+    def run(
+        self, file_path: str, trace, *,
+        replace_existing: bool = False,
+        collection_name: str | None = None,
+    ) -> PipelineResult:
+        """Execute the full MVP ingestion flow.
 
-    def rebuild(self, file_path: str, trace) -> PipelineResult:
+        When *collection_name* is provided and a ``collection_manager`` is
+        configured, the pipeline switches to the scoped stores for that
+        collection before persisting.
+        """
+        with self._scope(collection_name):
+            validated_path = self._validate_source(file_path, trace)
+            precheck = self._precheck_skip(str(validated_path), trace, replace_existing=replace_existing)
+            if precheck is not None:
+                return precheck
+            document = self._load_document(str(validated_path), trace)
+            decision = self._decide_ingestion_action(document, trace, replace_existing=replace_existing)
+            if decision.action == "skipped":
+                return self._finish_skipped_ingestion(document, decision, trace)
+            prepared = self.prepare(document, trace)
+            return self.persist(prepared, trace, decision=decision)
+
+    def rebuild(
+        self, file_path: str, trace, *,
+        collection_name: str | None = None,
+    ) -> PipelineResult:
         """Rebuild a document's stored indexes from the source file."""
-        validated_path = self._validate_source(file_path, trace)
-        document = self._load_document(str(validated_path), trace)
-        decision = self._decide_ingestion_action(document, trace, replace_existing=True)
-        prepared = self.prepare(document, trace)
-        return self.persist(prepared, trace, decision=decision)
+        with self._scope(collection_name):
+            validated_path = self._validate_source(file_path, trace)
+            document = self._load_document(str(validated_path), trace)
+            decision = self._decide_ingestion_action(document, trace, replace_existing=True)
+            prepared = self.prepare(document, trace)
+            return self.persist(prepared, trace, decision=decision)
+
+    # -- scope helpers --------------------------------------------------
+
+    def _scope(self, collection_name: str | None):
+        """Return a context manager that temporarily swaps stores.
+
+        When *collection_name* is ``None`` or no ``collection_manager`` is
+        configured, this is a no-op.
+        """
+        if collection_name is None or self.collection_manager is None:
+            return _NoOpScope()
+        scope = self.collection_manager.get_scope(collection_name)
+        return _ScopedStores(self, scope)
+
+    def _restore_defaults(self, saved: dict) -> None:
+        """Restore default store references from a saved snapshot."""
+        for attr, value in saved.items():
+            setattr(self, attr, value)
 
     def _validate_source(self, file_path: str, trace) -> Path:
         """Validate the local source file before any ingestion work starts."""
@@ -312,3 +346,39 @@ class IngestionPipeline:
         """Return the best available fingerprint for idempotency decisions."""
         metadata = document.metadata
         return metadata.get("source_bytes_fingerprint") or metadata.get("content_fingerprint")
+
+
+class _NoOpScope:
+    """Context manager that does nothing (used when no collection is specified)."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args) -> None:
+        pass
+
+
+class _ScopedStores:
+    """Context manager that temporarily swaps pipeline stores for a collection scope."""
+
+    _STORE_ATTRS = (
+        "document_repository",
+        "chunk_repository",
+        "vector_store",
+        "sparse_index",
+    )
+
+    def __init__(self, pipeline: IngestionPipeline, scope) -> None:
+        self._pipeline = pipeline
+        self._scope = scope
+        self._saved: dict = {}
+
+    def __enter__(self):
+        for attr in self._STORE_ATTRS:
+            self._saved[attr] = getattr(self._pipeline, attr)
+            setattr(self._pipeline, attr, getattr(self._scope, attr))
+        return self
+
+    def __exit__(self, *args) -> None:
+        for attr, value in self._saved.items():
+            setattr(self._pipeline, attr, value)

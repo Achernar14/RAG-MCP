@@ -31,7 +31,11 @@ class GenerateAnswerUseCase:
     def execute(self, request: GenerateAnswerRequest) -> GenerateAnswerResponse:
         """Run retrieval first, then generate a grounded answer."""
         query_response = self.query_use_case.execute(
-            QueryRequest(query=request.query, top_k=request.top_k)
+            QueryRequest(
+                query=request.query,
+                top_k=request.top_k,
+                collection_name=request.collection_name,
+            )
         )
         llm_provider_name = self.llm_provider.__class__.__name__
         llm_model = getattr(self.llm_provider, "model", None)

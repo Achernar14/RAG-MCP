@@ -10,7 +10,7 @@ from rag_mcp.core.settings import Settings
 from rag_mcp.domain.services.reranking import BaseReranker
 from rag_mcp.infrastructure.embedding.hash_embedding import HashEmbeddingProvider
 from rag_mcp.infrastructure.embedding.zhipu_embedding import ZhipuEmbeddingProvider
-from rag_mcp.infrastructure.llm.deepseek_llm import DeepSeekLlmProvider
+from rag_mcp.infrastructure.llm.openai_compatible_llm import OpenAICompatibleLlmProvider
 from rag_mcp.infrastructure.llm.stub_llm import StubLlmProvider
 from rag_mcp.infrastructure.rerank.lexical_reranker import LexicalReranker
 
@@ -45,7 +45,7 @@ def create_llm_provider(settings: Settings):
         provider_name=provider,
         settings=settings,
         factories={
-            "deepseek": _create_deepseek_llm_provider,
+            "deepseek": _create_openai_compatible_llm_provider,
         },
     )
 
@@ -104,8 +104,8 @@ def _create_stub_llm_provider(settings: Settings) -> StubLlmProvider:
     return StubLlmProvider()
 
 
-def _create_deepseek_llm_provider(settings: Settings) -> DeepSeekLlmProvider:
-    return DeepSeekLlmProvider(
+def _create_openai_compatible_llm_provider(settings: Settings) -> OpenAICompatibleLlmProvider:
+    return OpenAICompatibleLlmProvider(
         api_base=settings.llm.api_base,
         api_key_env=settings.llm.api_key_env,
         model=settings.llm.model,

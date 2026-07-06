@@ -11,18 +11,18 @@ from rag_mcp.core.exceptions import NotFoundError
 class GetDocumentDetailUseCase:
     """Return a detailed view of a document and its chunks."""
 
-    def __init__(self, document_repository, chunk_repository) -> None:
-        self.document_repository = document_repository
-        self.chunk_repository = chunk_repository
+    def __init__(self, collection_manager) -> None:
+        self.collection_manager = collection_manager
 
-    def execute(self, document_id: str) -> DocumentDetailResponse:
+    def execute(self, document_id: str, collection_name: str | None = None) -> DocumentDetailResponse:
         """Build a detailed response for the requested document."""
-        document = self.document_repository.get(document_id)
+        scope = self.collection_manager.get_scope(collection_name)
+        document = scope.document_repository.get(document_id)
         if document is None:
             raise NotFoundError(f"Document not found: {document_id}")
 
         chunks = sorted(
-            self.chunk_repository.list_by_document(document_id),
+            scope.chunk_repository.list_by_document(document_id),
             key=lambda item: item.chunk_index,
         )
         assets = document.metadata.get("assets", [])
