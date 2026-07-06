@@ -176,16 +176,18 @@ class ApplicationContainer:
             )
         if provider == "weaviate":
             from rag_mcp.infrastructure.vector_store.weaviate_store import WeaviateVectorStore
+            vs = self.settings.vector_store
             return WeaviateVectorStore(
+                mode=vs.weaviate_mode,
                 persistence_data_path=str(
-                    resolve_project_path(
-                        self.settings.vector_store.weaviate_persistence_data_path
-                    )
+                    resolve_project_path(vs.weaviate_persistence_data_path)
                 ),
-                version=self.settings.vector_store.weaviate_version,
-                hostname=self.settings.vector_store.weaviate_hostname,
-                port=self.settings.vector_store.weaviate_port,
-                collection_name=self.settings.vector_store.collection_name,
+                version=vs.weaviate_version,
+                hostname=vs.weaviate_hostname,
+                port=vs.weaviate_port,
+                grpc_port=vs.weaviate_grpc_port,
+                api_key=vs.weaviate_api_key,
+                collection_name=vs.collection_name,
             )
         raise ValueError(f"Unsupported vector store provider: {provider}")
 

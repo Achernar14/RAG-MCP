@@ -15,6 +15,19 @@ embedding_provider:
 llm:
   provider: "deepseek"
   enabled: true
+  # ── api_base 说明 ────────────────────────────────
+  # 最终请求 URL = {api_base}/chat/completions
+  #
+  # 直连供应商示例：
+  #   DeepSeek:  https://api.deepseek.com
+  #   OpenAI:    https://api.openai.com/v1     ← 注意：必须包含 /v1
+  #
+  # 经外部 LLM 网关示例（详见 docs/integration-guide.md）：
+  #   LiteLLM:   http://localhost:4000/v1
+  #   Synapse:   https://your-synapse.example.com/v1
+  #   OpenRouter: https://openrouter.ai/api/v1
+  #
+  # 通过 .env 中的 OPENAI_API_BASE 可覆盖此值（需代码层面支持）
   api_base: "https://api.deepseek.com"
   api_key_env: "DEEPSEEK_API_KEY"
   model: "deepseek-chat"
@@ -34,10 +47,21 @@ vector_store:
   provider: "weaviate"
   collection_name: "RAG_MCP"
   persist_path: "data/vector_store/chroma_live"
+
+  # ── Weaviate 连接模式 ────────────────────────────
+  # "embedded": 进程内启动 Weaviate（Linux/macOS 可用，Windows 不支持）
+  # "remote":   连接外部 Weaviate（Docker 容器 / Weaviate Cloud），全平台可用
+  weaviate_mode: "embedded"
+
+  # Embedded 模式专用（仅 weaviate_mode == "embedded" 时生效）
   weaviate_persistence_data_path: "data/vector_store/weaviate"
   weaviate_version: "1.37.2"
   weaviate_hostname: "127.0.0.1"
   weaviate_port: 8079
+
+  # Remote 模式专用（仅 weaviate_mode == "remote" 时生效）
+  weaviate_grpc_port: 50051
+  weaviate_api_key: null          # Weaviate Cloud 需要 API Key
 
 ingestion:
   chunk_size: 500

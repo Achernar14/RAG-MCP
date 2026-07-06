@@ -1,12 +1,39 @@
 [project]
 name = "rag-mcp"
 version = "0.1.0"
-description = "A modular RAG MCP server for local knowledge retrieval."
-readme = "README.md"
+description = "A modular, MCP-native RAG service — knowledge backend for AI Agents"
+license = {text = "MIT"}
+authors = [
+    {name = "Long Chengfei", email = "longchengfei@example.com"},
+    {name = "Zeng Boyuan", email = "zengboyuan@example.com"},
+]
+keywords = [
+    "rag",
+    "mcp",
+    "retrieval-augmented-generation",
+    "knowledge-base",
+    "ai-agent",
+    "fastapi",
+    "chromadb",
+    "llm",
+    "embedding",
+    "claude-desktop",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
 requires-python = ">=3.11"
 dependencies = [
     "chromadb>=1.5.0",
-    "weaviate-client>=4.20.0",
     "fastapi>=0.115.0",
     "httpx>=0.27.0",
     "mcp[cli]>=1.27.0",
@@ -17,11 +44,31 @@ dependencies = [
     "python-dotenv>=1.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Achernar14/RAG-MCP"
+Repository = "https://github.com/Achernar14/RAG-MCP"
+Issues = "https://github.com/Achernar14/RAG-MCP/issues"
+
+[project.scripts]
+rag-mcp = "rag_mcp.mcp.server:main"
+
 [project.optional-dependencies]
+weaviate = [
+    "weaviate-client>=4.20.0",
+]
 redis = [
     "redis[hiredis]>=5.0.0",
 ]
 dev = [
+    "pytest>=8.2.0",
+    "streamlit>=1.45.0",
+]
+docs = [
+    "streamlit>=1.45.0",
+]
+all = [
+    "weaviate-client>=4.20.0",
+    "redis[hiredis]>=5.0.0",
     "pytest>=8.2.0",
     "streamlit>=1.45.0",
 ]

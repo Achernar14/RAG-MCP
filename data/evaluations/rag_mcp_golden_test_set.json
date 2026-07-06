@@ -1,0 +1,127 @@
+{
+  "dataset_name": "rag_mcp_tech_doc_suite",
+  "description": "20 QA pairs covering RAG-MCP core concepts — Skill architecture, retrieval pipeline, MCP protocol, configuration, ingestion, architecture layers, REST API, observability, and evaluation.",
+  "source_document": "docs/技术文档.md",
+  "cases": [
+    {
+      "case_id": "case_skill_registry",
+      "query": "Skill 是怎么注册和启用的？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "skill", "difficulty": "easy"}
+    },
+    {
+      "case_id": "case_skill_descriptor",
+      "query": "每个 Skill 实现需要包含哪些核心方法？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "skill", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_skill_gate",
+      "query": "Skill 门控规则是什么？关闭一个 Skill 后会发生什么？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "skill", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_skill_deps",
+      "query": "Skill 之间的依赖关系是怎样的？ingestion 和 retrieval 之间有什么依赖？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "skill", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_retrieval_pipeline",
+      "query": "RAG-MCP 的检索管线是怎么设计的？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "retrieval", "difficulty": "easy"}
+    },
+    {
+      "case_id": "case_hybrid_retrieval",
+      "query": "混合检索中 RRF 融合是怎么工作的？k 参数默认是多少？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "retrieval", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_rerank",
+      "query": "重排序（rerank）在检索管线中起什么作用？支持哪些 reranker？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "retrieval", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_mcp_transport",
+      "query": "MCP 协议支持哪些传输方式？默认使用哪种？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "mcp", "difficulty": "easy"}
+    },
+    {
+      "case_id": "case_mcp_tools",
+      "query": "MCP 工具是如何注册和暴露的？哪些 Skill 提供了 MCP 工具？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "mcp", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_config_pydantic",
+      "query": "settings.yaml 和 pydantic 默认值之间的关系是什么？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "config", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_config_providers",
+      "query": "如何切换 embedding、LLM 和向量库的提供者？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "config", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_ingestion_pipeline",
+      "query": "文档摄入管线包含哪些步骤？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "ingestion", "difficulty": "easy"}
+    },
+    {
+      "case_id": "case_supported_formats",
+      "query": "RAG-MCP 支持哪些文档格式？分块策略是怎样的？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "ingestion", "difficulty": "easy"}
+    },
+    {
+      "case_id": "case_architecture_layers",
+      "query": "项目采用了什么样的分层架构？各层职责是什么？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "architecture", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_presentation_layer",
+      "query": "Presentation 层的约束是什么？协议层能做和不能做什么？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "architecture", "difficulty": "hard"}
+    },
+    {
+      "case_id": "case_rest_api_endpoints",
+      "query": "REST API 提供了哪些端点？按什么路径组织？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "rest", "difficulty": "easy"}
+    },
+    {
+      "case_id": "case_observability_tracing",
+      "query": "可观测性系统是如何工作的？trace 如何收集和浏览？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "observability", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_evaluation_metrics",
+      "query": "检索评测系统支持哪些指标？评测报告如何保存？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "evaluation", "difficulty": "medium"}
+    },
+    {
+      "case_id": "case_container_di",
+      "query": "ApplicationContainer 如何进行依赖注入？Skill 如何向容器注入自己？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "architecture", "difficulty": "hard"}
+    },
+    {
+      "case_id": "case_dev_constraints",
+      "query": "开发决策基线包含哪些判断标准？新增 Skill 和 Provider 需要满足什么约束？",
+      "expected_source_paths": ["技术文档.md"],
+      "metadata": {"category": "architecture", "difficulty": "hard"}
+    }
+  ]
+}

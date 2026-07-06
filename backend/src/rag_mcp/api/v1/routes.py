@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from rag_mcp.api.auth import verify_api_key
 from rag_mcp.application.dto.models import (
     EvaluationRunRequest,
     GenerateAnswerRequest,
@@ -13,7 +14,7 @@ from rag_mcp.application.dto.models import (
 from rag_mcp.core.container import get_container
 from rag_mcp.core.exceptions import IngestionError, NotFoundError
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/api/v1", dependencies=[Depends(verify_api_key)])
 
 
 # -- Health (always available) --

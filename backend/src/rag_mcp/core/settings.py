@@ -71,11 +71,18 @@ class VectorStoreSettings(BaseModel):
     persist_path: str = "data/vector_store/chroma"
     collection_name: str = "RAG_MCP"
 
-    # Weaviate Embedded options
+    # Weaviate mode: "embedded" (Linux/macOS only) or "remote" (cross-platform)
+    weaviate_mode: str = "embedded"
+
+    # Weaviate Embedded options (used when weaviate_mode == "embedded")
     weaviate_persistence_data_path: str = "data/vector_store/weaviate"
     weaviate_version: str = "1.37.2"
     weaviate_hostname: str = "127.0.0.1"
     weaviate_port: int = 8079
+
+    # Weaviate Remote options (used when weaviate_mode == "remote")
+    weaviate_grpc_port: int = 50051
+    weaviate_api_key: str | None = None
 
 
 class IngestionSettings(BaseModel):
@@ -162,6 +169,14 @@ class RedisSettings(BaseModel):
     cache: RedisCacheSettings = Field(default_factory=RedisCacheSettings)
 
 
+class ApiKeyAuthSettings(BaseModel):
+    """API Key authentication settings for REST endpoints."""
+    enabled: bool = False
+    api_key_env: str | None = "RAG_MCP_API_KEY"
+    api_key_direct: str | None = None  # Direct key value (takes precedence over env var)
+    header_name: str = "X-API-Key"
+
+
 class SkillSettings(BaseModel):
     """Per-skill enablement flags."""
 
@@ -189,6 +204,7 @@ class Settings(BaseModel):
     mcp: McpSettings = Field(default_factory=McpSettings)
     api: ApiSettings = Field(default_factory=ApiSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
+    api_key: ApiKeyAuthSettings = Field(default_factory=ApiKeyAuthSettings)
     skills: SkillSettings = Field(default_factory=SkillSettings)
 
 
