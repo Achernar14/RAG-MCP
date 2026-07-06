@@ -151,7 +151,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/answers/generate ^
 A: `.env` 必须放在项目根目录（`RAG-MCP/`），且 Key 为真实值。Embedding 在服务启动时即初始化。
 
 **Q: 摄入报文件不支持？**
-A: 默认仅支持 `.txt` / `.md` / `.pdf`，见 `config/settings.yaml` 中 `ingestion.supported_extensions`。
+A: 默认支持 `.txt` / `.md` / `.pdf` / `.html` / `.htm`（含 Confluence 导出 HTML），见 `config/settings.yaml` 中 `ingestion.supported_extensions`。
 
 **Q: Claude Desktop 看不到 rag-mcp 工具？**
 A: 检查 `command` 是否指向能 `import rag_mcp` 的 python（`pip install -e .` 是否执行过）；查看 Claude Desktop 的日志确认 MCP server 是否启动成功。

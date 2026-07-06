@@ -13,7 +13,7 @@ embedding_provider:
   timeout_seconds: 30.0
 
 llm:
-  provider: "deepseek"
+  provider: "deepseek"       # 底层使用 OpenAICompatibleLlmProvider（任意 OpenAI 兼容 /chat/completions 端点均可）
   enabled: true
   # ── api_base 说明 ────────────────────────────────
   # 最终请求 URL = {api_base}/chat/completions
@@ -44,11 +44,11 @@ vision_llm:
   timeout_seconds: 60.0
 
 vector_store:
-  provider: "weaviate"
-  collection_name: "RAG_MCP"
+  provider: "chroma"            # "chroma"（默认，零依赖，全平台）| "weaviate" | "memory"
+  collection_name: "rag_mcp_live"
   persist_path: "data/vector_store/chroma_live"
 
-  # ── Weaviate 连接模式 ────────────────────────────
+  # ── Weaviate 连接模式（仅 provider: "weaviate" 时生效）────────────
   # "embedded": 进程内启动 Weaviate（Linux/macOS 可用，Windows 不支持）
   # "remote":   连接外部 Weaviate（Docker 容器 / Weaviate Cloud），全平台可用
   weaviate_mode: "embedded"

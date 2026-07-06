@@ -2,15 +2,15 @@
 
 > 面向本地知识库与 AI Agent 集成场景的模块化 RAG 服务
 
-本项目由华南师范大学软件学院的龙成飞（@longjincf）、曾博源（@Achernar14）完成。
-
 ## 项目定位
 
 RAG-MCP 是一个"面向 AI Agent / MCP Client 的知识上下文服务层与 RAG 能力底座"，聚焦三类能力：
 
-- **文档摄取** — 支持 `txt`、`md`、`pdf` 的加载、切分、向量化与索引
+- **文档摄取** — 支持 `txt`、`md`、`pdf`、`html`/`htm`（含 Confluence 导出页）的加载、切分、向量化与索引
 - **检索与问答** — 混合 Dense + Sparse 检索、RRF 融合、Rerank、生成式问答
 - **可观测性** — Trace 收集、Dashboard、评测体系
+- **多 Collection 隔离** — 每个 Collection 独立的向量库、文档仓库与索引，API 按 Collection 操作
+- **OpenAI 兼容 LLM** — 通用 `/chat/completions` 端点，可接入 DeepSeek/OpenAI/LiteLLM/Synapse 等任意兼容网关
 
 通过 REST API 和 **MCP Streamable HTTP** 协议暴露能力，可独立运行，也可作为 AI Agent 的知识后端。
 
