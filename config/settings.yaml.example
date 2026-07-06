@@ -127,6 +127,19 @@ api:
   host: "127.0.0.1"
   port: 8000
 
+api_key:
+  enabled: false
+  api_key_env: "RAG_MCP_API_KEY"
+  api_key_direct: null          # 直接填写 Key 值（优先级高于 env var）
+  header_name: "X-API-Key"
+
+cors:
+  enabled: true                 # 默认开启，本地开发 + Dashboard 浏览器访问需要
+  allow_origins: ["*"]          # 生产环境改为具体域名，如 ["https://dashboard.example.com"]
+  allow_methods: ["GET", "POST", "DELETE", "OPTIONS"]
+  allow_headers: ["*"]
+  allow_credentials: true
+
 redis:
   enabled: false
   host: "127.0.0.1"

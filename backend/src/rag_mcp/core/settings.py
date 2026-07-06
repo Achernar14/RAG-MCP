@@ -177,6 +177,21 @@ class ApiKeyAuthSettings(BaseModel):
     header_name: str = "X-API-Key"
 
 
+class CorsSettings(BaseModel):
+    """CORS (Cross-Origin Resource Sharing) configuration for REST API.
+
+    Enabled by default with permissive origins — suitable for local
+    development and Dashboard access from a browser.  Tighten
+    ``allow_origins`` when exposing the service beyond localhost.
+    """
+
+    enabled: bool = True
+    allow_origins: list[str] = Field(default_factory=lambda: ["*"])
+    allow_methods: list[str] = Field(default_factory=lambda: ["GET", "POST", "DELETE", "OPTIONS"])
+    allow_headers: list[str] = Field(default_factory=lambda: ["*"])
+    allow_credentials: bool = True
+
+
 class SkillSettings(BaseModel):
     """Per-skill enablement flags."""
 
@@ -205,6 +220,7 @@ class Settings(BaseModel):
     api: ApiSettings = Field(default_factory=ApiSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
     api_key: ApiKeyAuthSettings = Field(default_factory=ApiKeyAuthSettings)
+    cors: CorsSettings = Field(default_factory=CorsSettings)
     skills: SkillSettings = Field(default_factory=SkillSettings)
 
 

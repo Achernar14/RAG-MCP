@@ -24,6 +24,19 @@ def create_app() -> FastAPI:
     settings = container.settings
 
     app = FastAPI(title="RAG MCP", version="0.1.0")
+
+    # CORS middleware — allows browser-based Dashboard to access the REST API
+    if settings.cors.enabled:
+        from fastapi.middleware.cors import CORSMiddleware
+
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors.allow_origins,
+            allow_methods=settings.cors.allow_methods,
+            allow_headers=settings.cors.allow_headers,
+            allow_credentials=settings.cors.allow_credentials,
+        )
+
     app.include_router(api_router)
 
     # Mount MCP HTTP transport if configured
