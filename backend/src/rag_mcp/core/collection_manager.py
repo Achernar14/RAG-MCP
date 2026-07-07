@@ -8,10 +8,12 @@ different collections are fully isolated.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from rag_mcp.core.exceptions import CollectionNameError
 from rag_mcp.infrastructure.repositories.json_repositories import (
     JsonChunkRepository,
     JsonDocumentRepository,
@@ -27,6 +29,71 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 VectorStore = "ChromaVectorStore | InMemoryVectorStore | WeaviateVectorStore"
+
+# ── collection name validation ─────────────────────────────────────────
+
+# Allowed characters: alphanumeric, underscore, hyphen, dot.
+# Dots are permitted for compound names (e.g. "rag_mcp_live") but a lone
+# "." or ".." is rejected separately.
+_VALID_NAME_RE = re.compile(r"^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$")
+
+# Maximum length for a collection name — keeps directory names reasonable
+# and avoids filesystem limits (most systems cap single path components
+# at 255 bytes).
+_MAX_NAME_LENGTH = 64
+
+# Windows reserved file names — these cannot be used as directory names
+# regardless of extension.
+_WINDOWS_RESERVED_NAMES: frozenset[str] = frozenset({
+    "CON", "PRN", "AUX", "NUL",
+    "COM1", "COM2", "COM3", "COM4", "COM5",
+    "COM6", "COM7", "COM8", "COM9",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5",
+    "LPT6", "LPT7", "LPT8", "LPT9",
+})
+
+
+def validate_collection_name(name: str) -> str:
+    """Validate *name* and return it (normalised) on success.
+
+    Raises :class:`CollectionNameError` when the name is invalid.
+
+    Rules enforced:
+    * Non-empty, max 64 characters
+    * Starts with an alphanumeric character or underscore
+    * Contains only ``[a-zA-Z0-9_.-]``
+    * Not ``.`` or ``..`` (path traversal)
+    * Not a Windows reserved name (``CON``, ``NUL``, ``COM1``, …)
+    """
+    if not name:
+        raise CollectionNameError("Collection name must not be empty.")
+    if len(name) > _MAX_NAME_LENGTH:
+        raise CollectionNameError(
+            f"Collection name must be ≤ {_MAX_NAME_LENGTH} characters "
+            f"(got {len(name)})."
+        )
+    if name in (".", ".."):
+        raise CollectionNameError(
+            f"Collection name must not be '{name}' (path traversal)."
+        )
+
+    if not _VALID_NAME_RE.match(name):
+        raise CollectionNameError(
+            f"Invalid collection name '{name}'. "
+            f"Allowed characters: a-z, A-Z, 0-9, underscore, hyphen, dot. "
+            f"Must start with a letter, digit, or underscore."
+        )
+
+    upper = name.upper()
+    # Strip trailing dots + extension-like suffixes for reserved-name
+    # detection: "NUL." and "NUL.foo" are also inaccessible on Windows.
+    base = upper.split(".")[0]
+    if base in _WINDOWS_RESERVED_NAMES or upper in _WINDOWS_RESERVED_NAMES:
+        raise CollectionNameError(
+            f"Collection name '{name}' is a reserved system name on Windows."
+        )
+
+    return name
 
 
 @dataclass
@@ -70,6 +137,9 @@ class CollectionManager:
         When *collection_name* is ``None`` the configured default is used.
         """
         name = collection_name or self._settings.vector_store.collection_name
+        # Validate before touching the filesystem — prevents path traversal
+        # and other malicious directory names.
+        validate_collection_name(name)
         if name not in self._scopes:
             self._scopes[name] = self._build_scope(name)
         return self._scopes[name]

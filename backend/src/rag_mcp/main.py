@@ -10,10 +10,12 @@ The MCP HTTP transport is mounted when the configured transport is
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from rag_mcp.api.v1.routes import router as api_router
 from rag_mcp.core.container import get_container
+from rag_mcp.core.exceptions import CollectionNameError
 from rag_mcp.observability.logging import configure_logging
 
 
@@ -35,6 +37,21 @@ def create_app() -> FastAPI:
             allow_methods=settings.cors.allow_methods,
             allow_headers=settings.cors.allow_headers,
             allow_credentials=settings.cors.allow_credentials,
+        )
+
+    # Global exception handler: convert CollectionNameError → HTTP 400
+    @app.exception_handler(CollectionNameError)
+    async def _handle_collection_name_error(
+        request: Request, exc: CollectionNameError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "code": 400,
+                "message": str(exc),
+                "data": None,
+                "trace_id": None,
+            },
         )
 
     app.include_router(api_router)

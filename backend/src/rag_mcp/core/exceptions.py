@@ -31,3 +31,8 @@ class ProviderError(RagMcpError):
 
 class NotFoundError(RagMcpError):
     """Raised when a requested entity does not exist."""
+
+
+class CollectionNameError(RagMcpError):
+    """Raised when a collection name fails validation (path traversal, reserved
+    name, invalid characters, etc.)."""
