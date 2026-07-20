@@ -81,6 +81,7 @@ Desktop.ini
 # ------------------------------------------------------------------------------
 # Local planning / reference snapshots not part of the maintained codebase
 # ------------------------------------------------------------------------------
+Local/
 OnGoing.md
 MODULAR-RAG-MCP-SERVER-main/
 
