@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 
+from rag_mcp.domain.repositories.contracts import EmbeddingProvider
 
-class HashEmbeddingProvider:
+
+class HashEmbeddingProvider(EmbeddingProvider):
     """Generate deterministic fixed-size vectors from text."""
 
     def __init__(self, dimensions: int = 64) -> None:

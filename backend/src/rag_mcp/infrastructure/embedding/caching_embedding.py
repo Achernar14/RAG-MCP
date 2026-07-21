@@ -5,13 +5,15 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from rag_mcp.domain.repositories.contracts import EmbeddingProvider
+
 if TYPE_CHECKING:
     from rag_mcp.infrastructure.redis.cache import RedisCacheService
 
 logger = logging.getLogger(__name__)
 
 
-class CachingEmbeddingProvider:
+class CachingEmbeddingProvider(EmbeddingProvider):
     """Wraps an embedding provider with Redis caching.
 
     For each text, checks the Redis cache first.  On a miss the delegate

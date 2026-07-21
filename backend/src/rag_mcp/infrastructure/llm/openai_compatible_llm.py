@@ -12,10 +12,11 @@ from collections.abc import Iterator
 import httpx
 
 from rag_mcp.core.exceptions import ProviderError
+from rag_mcp.domain.repositories.contracts import LlmProvider
 from rag_mcp.infrastructure.providers.utils import require_env_value
 
 
-class OpenAICompatibleLlmProvider:
+class OpenAICompatibleLlmProvider(LlmProvider):
     """Call an OpenAI-compatible chat completions API.
 
     Works with any provider that exposes a ``/chat/completions`` endpoint

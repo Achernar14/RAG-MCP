@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+from rag_mcp.domain.repositories.contracts import LlmProvider
 
-class StubLlmProvider:
+
+class StubLlmProvider(LlmProvider):
     """Generate deterministic answers from provided retrieval context."""
 
     model = "stub"

@@ -5,10 +5,11 @@ from __future__ import annotations
 import httpx
 
 from rag_mcp.core.exceptions import ProviderError
+from rag_mcp.domain.repositories.contracts import EmbeddingProvider
 from rag_mcp.infrastructure.providers.utils import require_env_value
 
 
-class ZhipuEmbeddingProvider:
+class ZhipuEmbeddingProvider(EmbeddingProvider):
     """Call Zhipu embedding API over HTTP."""
 
     def __init__(

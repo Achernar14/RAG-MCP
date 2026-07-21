@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 import time
 
 import chromadb
@@ -116,12 +117,12 @@ class ChromaVectorStore:
         while True:
             try:
                 return operation()
-            except Exception as exc:
+            except sqlite3.OperationalError as exc:
                 attempts += 1
                 if attempts >= self.max_retries or not self._is_lock_error(exc):
                     raise
                 time.sleep(self.retry_delay_seconds)
 
-    def _is_lock_error(self, exc: Exception) -> bool:
+    def _is_lock_error(self, exc: sqlite3.OperationalError) -> bool:
         """Return True when the exception is a transient database lock."""
         return "database is locked" in str(exc).lower()
