@@ -63,15 +63,19 @@ def test_stdio_server_initialize_and_call_tool():
     # Ingest via REST path first — MCP no longer exposes management tools.
     from rag_mcp.core.container import reset_container as _rc
     _rc()
-    import yaml as _yaml, os as _os
+    import os as _os
     _settings_path = _os.environ["RAG_MCP_SETTINGS_PATH"]
     from rag_mcp.core.settings import load_settings
-    from rag_mcp.core.container import ApplicationContainer
+    from rag_mcp.factory import create_rag_system
     _settings = load_settings(_settings_path)
-    _container = ApplicationContainer(_settings)
+    _rag = create_rag_system(_settings)
     from rag_mcp.application.dto.models import IngestRequest
-    _container.ingest_use_case.execute(IngestRequest(path=str(sample_path)))
-    _container.close()
+    _rag.ingest_use_case.execute(IngestRequest(path=str(sample_path)))
+    # Close resources
+    for scope in _rag.collection_manager._scopes.values():
+        close_m = getattr(scope.vector_store, "close", None)
+        if callable(close_m):
+            close_m()
 
     async def scenario() -> None:
         server_params = StdioServerParameters(

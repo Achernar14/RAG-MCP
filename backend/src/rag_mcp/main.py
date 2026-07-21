@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from rag_mcp.api.v1.routes import router as api_router
-from rag_mcp.core.container import get_container
+from rag_mcp.factory import get_rag
 from rag_mcp.core.exceptions import CollectionNameError
 from rag_mcp.observability.logging import configure_logging
 
@@ -22,8 +22,8 @@ from rag_mcp.observability.logging import configure_logging
 def create_app() -> FastAPI:
     """Create the FastAPI application with optional MCP HTTP transport."""
     configure_logging()
-    container = get_container()
-    settings = container.settings
+    rag = get_rag()
+    settings = rag.settings
 
     app = FastAPI(title="RAG MCP", version="0.1.0")
 

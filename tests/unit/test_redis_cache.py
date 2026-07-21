@@ -271,10 +271,10 @@ class TestContainerRedisIntegration:
 
     def test_redis_disabled_no_cache(self):
         """When redis.enabled=false, container creates without cache."""
-        from rag_mcp.core.container import ApplicationContainer
+        from rag_mcp.factory import create_rag_system
 
         settings = Settings.model_validate({"redis": {"enabled": False}})
-        container = ApplicationContainer(settings)
+        container = create_rag_system(settings)
         # embedding_provider should be the raw provider, not wrapped
         from rag_mcp.infrastructure.embedding.caching_embedding import (
             CachingEmbeddingProvider,
@@ -284,7 +284,7 @@ class TestContainerRedisIntegration:
 
     def test_redis_enabled_but_unreachable_falls_back(self):
         """When redis.enabled=true but Redis is not running, container still starts."""
-        from rag_mcp.core.container import ApplicationContainer
+        from rag_mcp.factory import create_rag_system
 
         settings = Settings.model_validate({
             "redis": {
@@ -294,7 +294,7 @@ class TestContainerRedisIntegration:
                 "cache": {"embedding_enabled": True},
             }
         })
-        container = ApplicationContainer(settings)
+        container = create_rag_system(settings)
         # Should still work, just without caching
         from rag_mcp.infrastructure.embedding.caching_embedding import (
             CachingEmbeddingProvider,

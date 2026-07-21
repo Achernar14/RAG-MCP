@@ -120,7 +120,7 @@ def test_mcp_collection_and_document_browse_flow():
     result = container.ingest_use_case.execute(
         IngestRequest(path=str(sample_path))
     )
-    document_id = result.document_id
+    document_id = result["document_id"]
 
     # Management tools are NOT MCP tools:
     ingest_attempt = handle_message(
@@ -189,7 +189,7 @@ def test_delete_document_mcp_tool_not_exposed():
     result = container.ingest_use_case.execute(
         IngestRequest(path=str(sample_path))
     )
-    document_id = result.document_id
+    document_id = result["document_id"]
 
     # delete_document is NOT an MCP tool:
     deletion = handle_message(
@@ -280,7 +280,7 @@ def test_document_detail_returns_not_found_after_delete():
     result = container.ingest_use_case.execute(
         IngestRequest(path=str(sample_path))
     )
-    document_id = result.document_id
+    document_id = result["document_id"]
 
     # Delete via REST:
     container.delete_document_use_case.execute(document_id)

@@ -17,7 +17,7 @@ from typing import Literal
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 
-from rag_mcp.core.container import get_container
+from rag_mcp.factory import get_rag
 from rag_mcp.mcp.tools import register_mcp_tools
 
 TransportType = Literal["stdio", "streamable-http", "sse"]
@@ -25,12 +25,12 @@ TransportType = Literal["stdio", "streamable-http", "sse"]
 
 def _build_fastmcp_server() -> FastMCP:
     """Build an MCP server with the minimal read-only tool set."""
-    container = get_container()
-    settings = container.settings
+    rag = get_rag()
+    settings = rag.settings
     server = FastMCP(name=settings.mcp.server_name)
     server._mcp_server.version = settings.mcp.server_version
 
-    register_mcp_tools(server, container)
+    register_mcp_tools(server, rag)
 
     return server
 
@@ -64,13 +64,13 @@ def main(transport: TransportType | None = None) -> int:
     """
     server = create_fastmcp_server()
     if transport is None:
-        settings = get_container().settings
+        settings = get_rag().settings
         transport = settings.mcp.transport  # type: ignore[assignment]
 
     if transport == "streamable-http":
         server.run(transport="streamable-http")
     elif transport == "sse":
-        settings = get_container().settings
+        settings = get_rag().settings
         server.run(transport="sse", mount_path=settings.mcp.mount_path)
     else:
         server.run(transport="stdio")

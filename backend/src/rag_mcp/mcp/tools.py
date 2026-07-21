@@ -18,10 +18,10 @@ from rag_mcp.application.dto.models import (
     QueryRequest,
     QueryResponse,
 )
-from rag_mcp.core.container import ApplicationContainer
+from rag_mcp.factory import RAGSystem
 
 
-def register_mcp_tools(server: FastMCP, container: ApplicationContainer) -> None:
+def register_mcp_tools(server: FastMCP, rag: RAGSystem) -> None:
     """Register the minimal MCP tool set on *server*.
 
     Only **read-only knowledge retrieval and browsing** tools are exposed.
@@ -37,7 +37,7 @@ def register_mcp_tools(server: FastMCP, container: ApplicationContainer) -> None
         Use this tool when you need factual information to answer a user's
         question. It returns ranked text chunks with source references.
         """
-        return container.query_use_case.execute(
+        return rag.query_use_case.execute(
             QueryRequest(query=query, top_k=top_k)
         )
 
@@ -55,7 +55,7 @@ def register_mcp_tools(server: FastMCP, container: ApplicationContainer) -> None
 
     def list_documents(collection_name: str | None = None) -> list[DocumentListItemResponse]:
         """List all ingested documents in the knowledge base."""
-        return container.list_documents_use_case.execute(collection_name)
+        return rag.list_documents_use_case.execute(collection_name)
 
     server.add_tool(
         list_documents,
@@ -68,7 +68,7 @@ def register_mcp_tools(server: FastMCP, container: ApplicationContainer) -> None
 
     def list_collections() -> list[CollectionInfoResponse]:
         """List all available collections and their document counts."""
-        return container.list_collections_use_case.execute()
+        return rag.list_collections_use_case.execute()
 
     server.add_tool(
         list_collections,
