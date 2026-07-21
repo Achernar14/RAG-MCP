@@ -24,16 +24,23 @@ class ZhipuEmbeddingProvider:
         self.model = model or "embedding-3"
         self.timeout_seconds = timeout_seconds
 
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """Return embeddings for a list of texts."""
-        embeddings: list[list[float]] = []
-        for text in texts:
-            embeddings.append(self._embed_single(text))
-        return embeddings
+    _BATCH_SIZE = 64
 
-    def _embed_single(self, text: str) -> list[float]:
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Return embeddings for a list of texts — batch API, one POST per batch."""
+        if not texts:
+            return []
+
+        all_embeddings: list[list[float]] = []
+        for i in range(0, len(texts), self._BATCH_SIZE):
+            batch = texts[i : i + self._BATCH_SIZE]
+            all_embeddings.extend(self._embed_batch(batch))
+        return all_embeddings
+
+    def _embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """Send a batch of texts to the Zhipu embedding API in a single request."""
         url = f"{self.api_base}/embeddings"
-        payload = {"model": self.model, "input": text}
+        payload = {"model": self.model, "input": texts}
         headers = {"Authorization": f"Bearer {self.api_key}"}
         try:
             response = httpx.post(
@@ -44,6 +51,7 @@ class ZhipuEmbeddingProvider:
             )
             response.raise_for_status()
             data = response.json()
-            return data["data"][0]["embedding"]
+            items = sorted(data["data"], key=lambda x: x["index"])
+            return [item["embedding"] for item in items]
         except Exception as exc:
             raise ProviderError(f"Zhipu embedding request failed: {exc}") from exc
