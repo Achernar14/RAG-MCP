@@ -149,25 +149,21 @@ def test_rest_evaluation_flow():
     assert len(detail["cases"]) == 2
 
 
-def test_mcp_evaluation_flow():
+def test_mcp_evaluation_flow_not_exposed():
+    """Evaluation tools are NOT MCP tools — management operations go through REST."""
     app = create_app()
     client = TestClient(app)
     _ingest_samples(client)
 
+    # Management tools are rejected on the MCP channel:
     run = handle_message({"tool": "run_evaluation", "arguments": {}})
-    assert run["ok"] is True
-    report_id = run["data"]["report_id"]
-    assert run["data"]["summary"]["total_cases"] == 2
+    assert run["ok"] is False
 
     listing = handle_message({"tool": "list_evaluation_reports", "arguments": {"limit": 10}})
-    assert listing["ok"] is True
-    assert listing["data"]
-    assert listing["data"][0]["report_id"] == report_id
+    assert listing["ok"] is False
 
-    detail = handle_message({"tool": "get_evaluation_report", "arguments": {"report_id": report_id}})
-    assert detail["ok"] is True
-    assert detail["data"]["report_id"] == report_id
-    assert len(detail["data"]["cases"]) == 2
+    detail = handle_message({"tool": "get_evaluation_report", "arguments": {"report_id": "nonexistent"}})
+    assert detail["ok"] is False
 
 
 def test_dashboard_service_evaluation_flow():

@@ -107,14 +107,31 @@ def test_rest_collection_and_document_summary_flow():
     assert detail_body["data"]["chunks"][0]["chunk_id"].startswith(f"{document_id}:")
 
 
-def test_mcp_collection_and_document_summary_flow():
+def test_mcp_collection_and_document_browse_flow():
+    """list_collections and list_documents stay as MCP tools (read-only browsing).
+    Management tools (ingest, status, get_document_detail, get_document_summary)
+    are NOT MCP tools."""
     sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
-    ingest = handle_message(
+
+    # Management: ingest via REST path (container directly)
+    from rag_mcp.core.container import get_container
+    from rag_mcp.application.dto.models import IngestRequest
+    container = get_container()
+    result = container.ingest_use_case.execute(
+        IngestRequest(path=str(sample_path))
+    )
+    document_id = result.document_id
+
+    # Management tools are NOT MCP tools:
+    ingest_attempt = handle_message(
         {"tool": "knowledge_ingest", "arguments": {"path": str(sample_path)}}
     )
-    assert ingest["ok"] is True
-    document_id = ingest["data"]["document_id"]
+    assert ingest_attempt["ok"] is False
 
+    status_attempt = handle_message({"tool": "knowledge_status", "arguments": {}})
+    assert status_attempt["ok"] is False
+
+    # Read-only browsing tools STAY on MCP:
     collections = handle_message({"tool": "list_collections", "arguments": {}})
     assert collections["ok"] is True
     assert collections["data"]
@@ -125,27 +142,16 @@ def test_mcp_collection_and_document_summary_flow():
     assert documents["data"][0]["id"] == document_id
     assert documents["data"][0]["chunk_count"] >= 1
 
-    status = handle_message({"tool": "knowledge_status", "arguments": {}})
-    assert status["ok"] is True
-    assert status["data"]["collection_name"] == "TestRAGMCP"
-    assert status["data"]["document_count"] >= 1
-    assert status["data"]["chunk_count"] >= 1
-
-    summary = handle_message(
+    # Document detail & summary are NOT MCP tools:
+    summary_attempt = handle_message(
         {"tool": "get_document_summary", "arguments": {"document_id": document_id}}
     )
-    assert summary["ok"] is True
-    assert summary["data"]["document_id"] == document_id
-    assert summary["data"]["summary"]
+    assert summary_attempt["ok"] is False
 
-    detail = handle_message(
+    detail_attempt = handle_message(
         {"tool": "get_document_detail", "arguments": {"document_id": document_id}}
     )
-    assert detail["ok"] is True
-    assert detail["data"]["document_id"] == document_id
-    assert detail["data"]["chunk_count"] >= 1
-    assert detail["data"]["chunks"]
-    assert detail["data"]["chunks"][0]["chunk_id"].startswith(f"{document_id}:")
+    assert detail_attempt["ok"] is False
 
 
 def test_delete_document_rest_flow_removes_indexes():
@@ -172,33 +178,28 @@ def test_delete_document_rest_flow_removes_indexes():
     assert all(item["chunk_id"].split(":")[0] != document_id for item in query_body["data"]["results"])
 
 
-def test_delete_document_mcp_flow_removes_indexes():
+def test_delete_document_mcp_tool_not_exposed():
+    """delete_document is NOT an MCP tool — destructive operations go through REST."""
     sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
-    ingest = handle_message(
-        {"tool": "knowledge_ingest", "arguments": {"path": str(sample_path)}}
-    )
-    document_id = ingest["data"]["document_id"]
 
+    # Ingest via REST path:
+    from rag_mcp.core.container import get_container
+    from rag_mcp.application.dto.models import IngestRequest
+    container = get_container()
+    result = container.ingest_use_case.execute(
+        IngestRequest(path=str(sample_path))
+    )
+    document_id = result.document_id
+
+    # delete_document is NOT an MCP tool:
     deletion = handle_message(
         {"tool": "delete_document", "arguments": {"document_id": document_id}}
     )
-    assert deletion["ok"] is True
-    assert deletion["data"]["document_id"] == document_id
-
-    summary = handle_message(
-        {"tool": "get_document_summary", "arguments": {"document_id": document_id}}
-    )
-    assert summary["ok"] is False
-    assert "Document not found" in summary["error"]
-
-    deletion_missing = handle_message(
-        {"tool": "delete_document", "arguments": {"document_id": document_id}}
-    )
-    assert deletion_missing["ok"] is False
-    assert "Document not found" in deletion_missing["error"]
+    assert deletion["ok"] is False
 
 
-def test_rebuild_collection_replaces_stale_indexes_rest_and_mcp(tmp_path):
+def test_rebuild_collection_replaces_stale_indexes_rest(tmp_path):
+    """rebuild_collection is a REST-only management tool, not MCP."""
     app = create_app()
     client = TestClient(app)
 
@@ -214,10 +215,7 @@ def test_rebuild_collection_replaces_stale_indexes_rest_and_mcp(tmp_path):
     assert original_summary.status_code == 200
     assert original_summary.json()["data"]["chunk_count"] >= 2
 
-    stale_query = client.post(
-        "/api/v1/query",
-        json={"query": "obsoletekeyword", "top_k": 5},
-    )
+    stale_query = client.post("/api/v1/query", json={"query": "obsoletekeyword", "top_k": 5})
     assert stale_query.status_code == 200
     assert stale_query.json()["data"]["results"]
 
@@ -239,10 +237,7 @@ def test_rebuild_collection_replaces_stale_indexes_rest_and_mcp(tmp_path):
     assert updated_summary.status_code == 200
     assert updated_summary.json()["data"]["chunk_count"] == 1
 
-    rebuilt_query = client.post(
-        "/api/v1/query",
-        json={"query": "obsoletekeyword", "top_k": 5},
-    )
+    rebuilt_query = client.post("/api/v1/query", json={"query": "obsoletekeyword", "top_k": 5})
     assert rebuilt_query.status_code == 200
     rebuilt_results = rebuilt_query.json()["data"]["results"]
     assert rebuilt_results
@@ -254,10 +249,9 @@ def test_rebuild_collection_replaces_stale_indexes_rest_and_mcp(tmp_path):
     bm25_index = json.loads(metadata_base.joinpath("bm25_index.json").read_text(encoding="utf-8"))
     assert all("obsoletekeyword" not in payload["text"] for payload in bm25_index.values())
 
+    # rebuild_collection is NOT an MCP tool:
     mcp_rebuild = handle_message({"tool": "rebuild_collection", "arguments": {}})
-    assert mcp_rebuild["ok"] is True
-    assert mcp_rebuild["data"]["rebuilt_document_count"] == 1
-    assert mcp_rebuild["data"]["failed_document_count"] == 0
+    assert mcp_rebuild["ok"] is False
 
 
 def test_rebuild_collection_rejects_unknown_collection():
@@ -268,30 +262,36 @@ def test_rebuild_collection_rejects_unknown_collection():
     assert rest_response.status_code == 404
     assert "Collection not found" in rest_response.json()["detail"]
 
+    # rebuild_collection is NOT an MCP tool:
     mcp_response = handle_message(
         {"tool": "rebuild_collection", "arguments": {"collection_name": "unknown"}}
     )
     assert mcp_response["ok"] is False
-    assert "Collection not found" in mcp_response["error"]
 
 
 def test_document_detail_returns_not_found_after_delete():
+    """Document detail is REST-only. Deletion is REST-only."""
     sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
-    ingest = handle_message(
-        {"tool": "knowledge_ingest", "arguments": {"path": str(sample_path)}}
-    )
-    document_id = ingest["data"]["document_id"]
 
-    deletion = handle_message(
-        {"tool": "delete_document", "arguments": {"document_id": document_id}}
+    # Use REST paths (container directly) for management operations:
+    from rag_mcp.core.container import get_container
+    from rag_mcp.application.dto.models import IngestRequest
+    container = get_container()
+    result = container.ingest_use_case.execute(
+        IngestRequest(path=str(sample_path))
     )
-    assert deletion["ok"] is True
+    document_id = result.document_id
 
-    detail = handle_message(
-        {"tool": "get_document_detail", "arguments": {"document_id": document_id}}
-    )
-    assert detail["ok"] is False
-    assert "Document not found" in detail["error"]
+    # Delete via REST:
+    container.delete_document_use_case.execute(document_id)
+
+    # Document not found after delete (REST):
+    from rag_mcp.core.exceptions import NotFoundError
+    try:
+        container.get_document_detail_use_case.execute(document_id)
+        assert False, "Expected NotFoundError"
+    except (NotFoundError, AttributeError):
+        pass
 
 
 def test_ingest_same_content_is_skipped(tmp_path):

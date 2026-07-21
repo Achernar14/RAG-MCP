@@ -60,6 +60,19 @@ def test_stdio_server_initialize_and_call_tool():
     repo_root = Path(__file__).resolve().parents[2]
     sample_path = repo_root / "data" / "documents" / "sample.md"
 
+    # Ingest via REST path first — MCP no longer exposes management tools.
+    from rag_mcp.core.container import reset_container as _rc
+    _rc()
+    import yaml as _yaml, os as _os
+    _settings_path = _os.environ["RAG_MCP_SETTINGS_PATH"]
+    from rag_mcp.core.settings import load_settings
+    from rag_mcp.core.container import ApplicationContainer
+    _settings = load_settings(_settings_path)
+    _container = ApplicationContainer(_settings)
+    from rag_mcp.application.dto.models import IngestRequest
+    _container.ingest_use_case.execute(IngestRequest(path=str(sample_path)))
+    _container.close()
+
     async def scenario() -> None:
         server_params = StdioServerParameters(
             command=sys.executable,
@@ -79,22 +92,22 @@ def test_stdio_server_initialize_and_call_tool():
 
                 tools = await session.list_tools()
                 tool_names = {tool.name for tool in tools.tools}
-                assert "knowledge_ingest" in tool_names
-                assert "knowledge_query" in tool_names
-                assert "generate_answer" in tool_names
+                # MCP only exposes read-only knowledge tools:
+                assert tool_names == {"knowledge_search", "list_documents", "list_collections"}
 
+                # knowledge_search works
+                result = await session.call_tool(
+                    "knowledge_search",
+                    {"query": "dense retrieval", "top_k": 2},
+                )
+                assert result.isError is False
+                assert result.structuredContent["results"]
+
+                # Management tools are NOT exposed:
                 ingest = await session.call_tool(
                     "knowledge_ingest",
                     {"path": str(sample_path)},
                 )
-                assert ingest.isError is False
-                assert ingest.structuredContent is not None
-                assert ingest.structuredContent["chunk_count"] >= 1
-
-                status = await session.call_tool("knowledge_status", {})
-                assert status.isError is False
-                assert status.structuredContent is not None
-                assert status.structuredContent["collection_name"] == "TestRAGMCP"
-                assert status.structuredContent["document_count"] >= 1
+                assert ingest.isError is True
 
     anyio.run(scenario, backend="asyncio")

@@ -1,9 +1,12 @@
-"""Official MCP SDK server wiring -- driven by SkillRegistry.
+"""Official MCP SDK server wiring.
 
 Supports multiple transports:
   - stdio           : local process communication (default)
   - streamable-http : HTTP-based MCP transport (recommended for remote access)
   - sse             : legacy Server-Sent Events transport
+
+MCP tool registration is minimal by design — only read-only knowledge
+retrieval and browsing tools are exposed.  See ``mcp/tools.py``.
 """
 
 from __future__ import annotations
@@ -15,26 +18,19 @@ from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 
 from rag_mcp.core.container import get_container
+from rag_mcp.mcp.tools import register_mcp_tools
 
 TransportType = Literal["stdio", "streamable-http", "sse"]
 
 
 def _build_fastmcp_server() -> FastMCP:
-    """Build an official SDK-based MCP server from enabled skills."""
+    """Build an MCP server with the minimal read-only tool set."""
     container = get_container()
     settings = container.settings
     server = FastMCP(name=settings.mcp.server_name)
     server._mcp_server.version = settings.mcp.server_version
 
-    # Collect tools from all enabled skills
-    tool_descriptors = container.skill_registry.get_enabled_tools(container)
-    for desc in tool_descriptors:
-        handler = desc.handler
-        handler.__name__ = desc.name
-        handler.__doc__ = desc.description
-        if desc.return_type is not None:
-            handler.__annotations__["return"] = desc.return_type
-        server.add_tool(handler, name=desc.name, structured_output=True)
+    register_mcp_tools(server, container)
 
     return server
 

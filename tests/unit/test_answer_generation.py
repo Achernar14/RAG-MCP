@@ -125,7 +125,8 @@ def test_rest_generate_answer_flow():
     assert "Grounded answer" in body["data"]["answer"]
 
 
-def test_mcp_generate_answer_flow():
+def test_mcp_generate_answer_not_exposed():
+    """generate_answer is NOT an MCP tool — LLM generates its own answers."""
     app = create_app()
     client = TestClient(app)
     _ingest_sample(client)
@@ -133,9 +134,7 @@ def test_mcp_generate_answer_flow():
     response = handle_message(
         {"tool": "generate_answer", "arguments": {"query": "What does the MVP support?", "top_k": 3}}
     )
-    assert response["ok"] is True
-    assert response["data"]["answer"]
-    assert response["data"]["sources"]
+    assert response["ok"] is False  # Not a registered MCP tool
 
 
 def test_dashboard_service_generate_answer_flow():

@@ -60,31 +60,40 @@ def test_sdk_server_lists_tools_and_calls_core_flows():
     tools = asyncio.run(server.list_tools())
     tool_names = {tool.name for tool in tools}
 
-    assert "knowledge_ingest" in tool_names
-    assert "knowledge_query" in tool_names
-    assert "generate_answer" in tool_names
+    # MCP only exposes read-only knowledge retrieval and browsing tools.
+    # Management operations (ingest, delete, rebuild) and answer generation
+    # belong on the REST channel.
+    assert "knowledge_search" in tool_names
     assert "list_documents" in tool_names
+    assert "list_collections" in tool_names
 
-    _, ingest_structured = asyncio.run(
-        server.call_tool("knowledge_ingest", {"path": str(sample_path)})
+    # Management tools are NOT exposed on MCP:
+    assert "knowledge_ingest" not in tool_names
+    assert "generate_answer" not in tool_names
+
+    # First ingest via REST path (container directly) so there is data to search.
+    from rag_mcp.core.container import get_container
+    from rag_mcp.application.dto.models import IngestRequest
+    container = get_container()
+    container.ingest_use_case.execute(
+        IngestRequest(path=str(sample_path))
     )
-    assert ingest_structured["chunk_count"] >= 1
 
+    # knowledge_search — the core MCP tool
     _, query_structured = asyncio.run(
-        server.call_tool("knowledge_query", {"query": "dense retrieval", "top_k": 2})
+        server.call_tool("knowledge_search", {"query": "dense retrieval", "top_k": 2})
     )
     assert query_structured["results"]
     assert query_structured["trace_id"]
 
-    _, answer_structured = asyncio.run(
-        server.call_tool("generate_answer", {"query": "What does the MVP support?", "top_k": 2})
-    )
-    assert answer_structured["answer"]
-    assert answer_structured["sources"]
-
+    # list_documents — read-only browsing
     _, documents_structured = asyncio.run(server.call_tool("list_documents", {}))
     assert documents_structured["result"]
     assert documents_structured["result"][0]["filename"] == sample_path.name
+
+    # list_collections — read-only browsing
+    _, collections_structured = asyncio.run(server.call_tool("list_collections", {}))
+    assert collections_structured["result"]
 
 
 def test_sdk_server_uses_configured_server_name():

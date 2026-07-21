@@ -108,17 +108,10 @@ def test_main_resolves_transport_from_settings():
 
 
 def test_tools_registered_in_http_server():
-    """All 15 tools should be registered in the HTTP-capable MCP server."""
+    """MCP only exposes read-only knowledge retrieval and browsing tools."""
     server = create_fastmcp_server()
     tools = asyncio.run(server.list_tools())
     tool_names = {tool.name for tool in tools}
 
-    expected_tools = {
-        "knowledge_ingest", "knowledge_status", "rebuild_collection", "list_collections",
-        "knowledge_query",
-        "generate_answer",
-        "list_documents", "get_document_detail", "get_document_summary", "delete_document",
-        "run_evaluation", "list_evaluation_reports", "get_evaluation_report",
-        "list_traces", "get_trace_detail",
-    }
-    assert expected_tools.issubset(tool_names)
+    # MCP exposes only 3 read-only tools:
+    assert tool_names == {"knowledge_search", "list_documents", "list_collections"}

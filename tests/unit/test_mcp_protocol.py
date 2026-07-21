@@ -47,23 +47,27 @@ def reset_state(tmp_path, monkeypatch):
 def test_mcp_ingest_query_and_status():
     sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
 
-    ingest = handle_message(
-        {"tool": "knowledge_ingest", "arguments": {"path": str(sample_path)}}
+    # Ingest via REST path (container directly) — MCP no longer exposes
+    # management tools.
+    from rag_mcp.core.container import get_container
+    from rag_mcp.application.dto.models import IngestRequest
+    container = get_container()
+    container.ingest_use_case.execute(
+        IngestRequest(path=str(sample_path))
     )
-    assert ingest["ok"] is True
-    assert ingest["data"]["chunk_count"] >= 1
 
+    # MCP query tool is now named knowledge_search (was knowledge_query)
     query = handle_message(
-        {"tool": "knowledge_query", "arguments": {"query": "dense retrieval", "top_k": 2}}
+        {"tool": "knowledge_search", "arguments": {"query": "dense retrieval", "top_k": 2}}
     )
     assert query["ok"] is True
     assert query["data"]["results"]
 
-    status = handle_message({"tool": "knowledge_status", "arguments": {}})
-    assert status["ok"] is True
-    assert status["data"]["document_count"] >= 1
-    assert status["data"]["chunk_count"] >= 1
-    assert status["data"]["collection_name"] == "TestRAGMCP"
+    # Management tools (knowledge_ingest, knowledge_status) are not MCP tools:
+    ingest_attempt = handle_message(
+        {"tool": "knowledge_ingest", "arguments": {"path": str(sample_path)}}
+    )
+    assert ingest_attempt["ok"] is False
 
     documents = handle_message({"tool": "list_documents", "arguments": {}})
     assert documents["ok"] is True
@@ -97,29 +101,29 @@ def test_mcp_jsonrpc_initialize_tools_list_and_call():
     )
     assert tools_response["jsonrpc"] == "2.0"
     tool_names = {tool["name"] for tool in tools_response["result"]["tools"]}
-    assert "knowledge_ingest" in tool_names
-    assert "knowledge_query" in tool_names
-    assert "generate_answer" in tool_names
+    # MCP now only exposes read-only knowledge tools:
+    assert "knowledge_search" in tool_names
+    assert "list_documents" in tool_names
+    assert "list_collections" in tool_names
+    # Management tools and generate_answer are NOT MCP tools:
+    assert "knowledge_ingest" not in tool_names
+    assert "generate_answer" not in tool_names
 
-    ingest_response = handle_message(
-        {
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "tools/call",
-            "params": {"name": "knowledge_ingest", "arguments": {"path": str(sample_path)}},
-        }
+    # Ingest via REST path first so there is data to search.
+    from rag_mcp.core.container import get_container
+    from rag_mcp.application.dto.models import IngestRequest
+    container = get_container()
+    container.ingest_use_case.execute(
+        IngestRequest(path=str(sample_path))
     )
-    assert ingest_response["jsonrpc"] == "2.0"
-    assert ingest_response["result"]["isError"] is False
-    ingest_structured = ingest_response["result"]["structuredContent"]
-    assert ingest_structured["chunk_count"] >= 1
 
+    # tools/call: knowledge_search
     query_response = handle_message(
         {
             "jsonrpc": "2.0",
             "id": 4,
             "method": "tools/call",
-            "params": {"name": "knowledge_query", "arguments": {"query": "dense retrieval", "top_k": 2}},
+            "params": {"name": "knowledge_search", "arguments": {"query": "dense retrieval", "top_k": 2}},
         }
     )
     assert query_response["jsonrpc"] == "2.0"
@@ -128,17 +132,18 @@ def test_mcp_jsonrpc_initialize_tools_list_and_call():
 
 
 def test_mcp_jsonrpc_tools_call_returns_is_error_for_not_found():
+    # Calling an unregistered tool returns isError.
     response = handle_message(
         {
             "jsonrpc": "2.0",
             "id": 10,
             "method": "tools/call",
-            "params": {"name": "get_document_detail", "arguments": {"document_id": "missing-doc"}},
+            "params": {"name": "non_existent_tool", "arguments": {}},
         }
     )
     assert response["jsonrpc"] == "2.0"
     assert response["result"]["isError"] is True
-    assert "Document not found" in response["result"]["content"][0]["text"]
+    assert "Unknown tool" in response["result"]["content"][0]["text"]
 
 
 def test_mcp_jsonrpc_initialized_notification_returns_none():

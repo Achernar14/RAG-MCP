@@ -90,33 +90,29 @@ def test_rest_trace_list_and_detail_flow():
     assert any(stage["name"] == "dense_retrieval" for stage in detail_body["data"]["stages"])
 
 
-def test_mcp_trace_list_and_detail_flow():
+def test_mcp_trace_list_and_detail_not_exposed():
+    """Trace browsing is NOT an MCP tool — diagnostics go through REST."""
     sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
 
-    ingest = handle_message(
-        {"tool": "knowledge_ingest", "arguments": {"path": str(sample_path)}}
-    )
-    assert ingest["ok"] is True
+    # Ingest and query via REST (container directly):
+    from rag_mcp.core.container import get_container
+    from rag_mcp.application.dto.models import IngestRequest
+    container = get_container()
+    container.ingest_use_case.execute(IngestRequest(path=str(sample_path)))
 
-    query = handle_message(
-        {"tool": "knowledge_query", "arguments": {"query": "dense retrieval", "top_k": 2}}
+    query_response = container.query_use_case.execute(
+        type("QueryRequest", (), {"query": "dense retrieval", "top_k": 2, "collection_name": None})()
     )
-    assert query["ok"] is True
-    query_trace_id = query["data"]["trace_id"]
+    # Actually use the correct DTO:
+    from rag_mcp.application.dto.models import QueryRequest
+    qr = container.query_use_case.execute(QueryRequest(query="dense retrieval", top_k=2))
+    assert qr.trace_id
 
+    # Trace tools are NOT MCP tools:
     traces = handle_message({"tool": "list_traces", "arguments": {"trace_type": "query", "limit": 5}})
-    assert traces["ok"] is True
-    assert traces["data"]
-    assert all(item["trace_type"] == "query" for item in traces["data"])
+    assert traces["ok"] is False
 
     detail = handle_message(
-        {"tool": "get_trace_detail", "arguments": {"trace_id": query_trace_id}}
+        {"tool": "get_trace_detail", "arguments": {"trace_id": qr.trace_id}}
     )
-    assert detail["ok"] is True
-    assert detail["data"]["trace_id"] == query_trace_id
-    assert detail["data"]["stages"]
-    assert any(stage["name"] == "dense_retrieval" for stage in detail["data"]["stages"])
-
-    missing = handle_message({"tool": "get_trace_detail", "arguments": {"trace_id": "missing-trace"}})
-    assert missing["ok"] is False
-    assert "Trace not found" in missing["error"]
+    assert detail["ok"] is False
