@@ -7,7 +7,7 @@ import yaml
 from fastapi.testclient import TestClient
 
 from rag_mcp.core.collection_manager import validate_collection_name
-from rag_mcp.core.container import reset_container
+from rag_mcp.factory import reset_container
 from rag_mcp.core.exceptions import CollectionNameError
 from rag_mcp.main import create_app
 

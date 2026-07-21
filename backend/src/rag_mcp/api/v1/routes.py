@@ -15,10 +15,21 @@ from rag_mcp.application.dto.models import (
     QueryRequest,
 )
 from rag_mcp.application.handlers import (
+    delete_document,
     generate_answer,
     generate_answer_stream,
+    get_document_detail,
+    get_document_summary,
+    get_evaluation_report_detail,
     get_knowledge_status,
+    get_trace_detail,
     ingest_document,
+    list_collections,
+    list_documents,
+    list_evaluation_reports,
+    list_traces,
+    rebuild_collection,
+    run_evaluation,
     search_knowledge,
 )
 from rag_mcp.core.exceptions import IngestionError, NotFoundError
@@ -66,23 +77,20 @@ def stats(collection_name: str | None = None) -> dict:
 
 
 @router.post("/collections/rebuild")
-def rebuild_collection(collection_name: str | None = None) -> dict:
+def collections_rebuild(collection_name: str | None = None) -> dict:
     _require_skill("ingestion")
-    rag = get_rag()
     try:
-        result = rag.rebuild_collection_use_case.execute(collection_name)
+        result = rebuild_collection(get_rag(), collection_name)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"code": 0, "message": "ok", "data": result.model_dump(), "trace_id": None}
+    return {"code": 0, "message": "ok", "data": result, "trace_id": None}
 
 
 @router.get("/collections")
-def list_collections() -> dict:
+def collections_list() -> dict:
     _require_skill("ingestion")
-    rag = get_rag()
-    result = rag.list_collections_use_case.execute()
-    return {"code": 0, "message": "ok",
-            "data": [item.model_dump() for item in result], "trace_id": None}
+    result = list_collections(get_rag())
+    return {"code": 0, "message": "ok", "data": result, "trace_id": None}
 
 
 # ── Retrieval ───────────────────────────────────────────────────────────
@@ -128,98 +136,84 @@ def generate_stream(request: GenerateAnswerRequest):
 
 
 @router.get("/documents")
-def list_documents(collection_name: str | None = None) -> dict:
+def documents_list(collection_name: str | None = None) -> dict:
     _require_skill("document_management")
-    rag = get_rag()
-    result = rag.list_documents_use_case.execute(collection_name)
-    return {"code": 0, "message": "ok",
-            "data": [item.model_dump(mode="json") for item in result],
-            "trace_id": None}
+    result = list_documents(get_rag(), collection_name)
+    return {"code": 0, "message": "ok", "data": result, "trace_id": None}
 
 
 @router.get("/documents/{document_id}")
-def get_document_summary(document_id: str, collection_name: str | None = None) -> dict:
+def documents_summary(document_id: str, collection_name: str | None = None) -> dict:
     _require_skill("document_management")
-    rag = get_rag()
     try:
-        result = rag.get_document_summary_use_case.execute(document_id, collection_name)
+        result = get_document_summary(get_rag(), document_id, collection_name)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"code": 0, "message": "ok", "data": result.model_dump(), "trace_id": None}
+    return {"code": 0, "message": "ok", "data": result, "trace_id": None}
 
 
 @router.get("/documents/{document_id}/detail")
-def get_document_detail(document_id: str, collection_name: str | None = None) -> dict:
+def documents_detail(document_id: str, collection_name: str | None = None) -> dict:
     _require_skill("document_management")
-    rag = get_rag()
     try:
-        result = rag.get_document_detail_use_case.execute(document_id, collection_name)
+        result = get_document_detail(get_rag(), document_id, collection_name)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"code": 0, "message": "ok", "data": result.model_dump(mode="json"), "trace_id": None}
+    return {"code": 0, "message": "ok", "data": result, "trace_id": None}
 
 
 @router.delete("/documents/{document_id}")
-def delete_document(document_id: str, collection_name: str | None = None) -> dict:
+def documents_delete(document_id: str, collection_name: str | None = None) -> dict:
     _require_skill("document_management")
-    rag = get_rag()
     try:
-        result = rag.delete_document_use_case.execute(document_id, collection_name)
+        result = delete_document(get_rag(), document_id, collection_name)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"code": 0, "message": "ok", "data": result.model_dump(), "trace_id": None}
+    return {"code": 0, "message": "ok", "data": result, "trace_id": None}
 
 
 # ── Evaluation ──────────────────────────────────────────────────────────
 
 
 @router.post("/evaluations/run")
-def run_evaluation(request: EvaluationRunRequest) -> dict:
+def evaluations_run(request: EvaluationRunRequest) -> dict:
     _require_skill("evaluation")
-    rag = get_rag()
-    result = rag.run_evaluation_use_case.execute(request)
-    return {"code": 0, "message": "ok", "data": result.model_dump(), "trace_id": result.trace_id}
+    result = run_evaluation(get_rag(), request.dataset_path, request.top_k)
+    return {"code": 0, "message": "ok", "data": result, "trace_id": result["trace_id"]}
 
 
 @router.get("/evaluations")
-def list_evaluation_reports(limit: int = 20) -> dict:
+def evaluations_list(limit: int = 20) -> dict:
     _require_skill("evaluation")
-    rag = get_rag()
-    result = rag.list_evaluation_reports_use_case.execute(limit=limit)
-    return {"code": 0, "message": "ok",
-            "data": [item.model_dump() for item in result], "trace_id": None}
+    result = list_evaluation_reports(get_rag(), limit)
+    return {"code": 0, "message": "ok", "data": result, "trace_id": None}
 
 
 @router.get("/evaluations/{report_id}")
-def get_evaluation_report_detail(report_id: str) -> dict:
+def evaluations_detail(report_id: str) -> dict:
     _require_skill("evaluation")
-    rag = get_rag()
     try:
-        result = rag.get_evaluation_report_detail_use_case.execute(report_id)
+        result = get_evaluation_report_detail(get_rag(), report_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"code": 0, "message": "ok", "data": result.model_dump(), "trace_id": None}
+    return {"code": 0, "message": "ok", "data": result, "trace_id": None}
 
 
 # ── Observability ───────────────────────────────────────────────────────
 
 
 @router.get("/traces")
-def list_traces(trace_type: str | None = None, limit: int = 20) -> dict:
+def traces_list(trace_type: str | None = None, limit: int = 20) -> dict:
     _require_skill("observability")
-    rag = get_rag()
-    result = rag.list_traces_use_case.execute(trace_type=trace_type, limit=limit)
-    return {"code": 0, "message": "ok",
-            "data": [item.model_dump(mode="json") for item in result],
-            "trace_id": None}
+    result = list_traces(get_rag(), trace_type, limit)
+    return {"code": 0, "message": "ok", "data": result, "trace_id": None}
 
 
 @router.get("/traces/{trace_id}")
-def get_trace_detail(trace_id: str) -> dict:
+def traces_detail(trace_id: str) -> dict:
     _require_skill("observability")
-    rag = get_rag()
     try:
-        result = rag.get_trace_detail_use_case.execute(trace_id)
+        result = get_trace_detail(get_rag(), trace_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"code": 0, "message": "ok", "data": result.model_dump(mode="json"), "trace_id": None}
+    return {"code": 0, "message": "ok", "data": result, "trace_id": None}

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from rag_mcp.core.container import reset_container
+from rag_mcp.factory import reset_container
 from rag_mcp.mcp.sdk_server import (
     create_fastmcp_server,
     get_streamable_http_app,
@@ -101,7 +101,7 @@ def test_mcp_settings_transport_configuration(tmp_path, monkeypatch):
 def test_main_resolves_transport_from_settings():
     """main() should resolve transport from settings when no override is given."""
     from rag_mcp.mcp.sdk_server import main
-    from rag_mcp.core.container import get_container
+    from rag_mcp.factory import get_container
 
     container = get_container()
     assert container.settings.mcp.transport == "streamable-http"

@@ -12,7 +12,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-from rag_mcp.core.container import reset_container
+from rag_mcp.factory import reset_container
 from rag_mcp.main import create_app
 
 

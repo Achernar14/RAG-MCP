@@ -8,7 +8,7 @@ import yaml
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
-from rag_mcp.core.container import reset_container
+from rag_mcp.factory import reset_container
 
 
 @pytest.fixture(autouse=True)
@@ -61,7 +61,7 @@ def test_stdio_server_initialize_and_call_tool():
     sample_path = repo_root / "data" / "documents" / "sample.md"
 
     # Ingest via REST path first — MCP no longer exposes management tools.
-    from rag_mcp.core.container import reset_container as _rc
+    from rag_mcp.factory import reset_container as _rc
     _rc()
     import os as _os
     _settings_path = _os.environ["RAG_MCP_SETTINGS_PATH"]

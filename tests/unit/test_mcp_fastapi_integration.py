@@ -3,7 +3,7 @@
 import pytest
 import yaml
 
-from rag_mcp.core.container import reset_container
+from rag_mcp.factory import reset_container
 
 
 @pytest.fixture(autouse=True)

@@ -1,9 +1,5 @@
 """RAG system assembly — a single factory function that creates and wires
 all components in dependency order.
-
-Replaces the old Skill/Container/Registry architecture with a flat,
-sequential assembly function.  The resulting :class:`RAGSystem` object
-exposes everything the REST and MCP entry points need.
 """
 
 from __future__ import annotations
@@ -31,11 +27,6 @@ from rag_mcp.infrastructure.repositories.jsonl_trace_repository import (
 logger = logging.getLogger(__name__)
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# RAGSystem — a flat object that holds all wired components
-# ═══════════════════════════════════════════════════════════════════════════
-
-
 @dataclass
 class RAGSystem:
     """All components of the RAG system, wired and ready to use."""
@@ -55,30 +46,13 @@ class RAGSystem:
     loader: object = field(default=None)
     splitter: object = field(default=None)
     pipeline: object = field(default=None)
-    rebuild_collection_use_case: object = field(default=None)
-    list_collections_use_case: object = field(default=None)
 
     # -- retrieval --
     retrieval_service: object = field(default=None)
-    query_use_case: object = field(default=None)  # kept for eval compat
+    query_use_case: object = field(default=None)  # thin wrapper for eval
 
     # -- generation --
     answer_prompt_builder: object = field(default=None)
-
-    # -- document management --
-    list_documents_use_case: object = field(default=None)
-    get_document_detail_use_case: object = field(default=None)
-    get_document_summary_use_case: object = field(default=None)
-    delete_document_use_case: object = field(default=None)
-
-    # -- evaluation --
-    run_evaluation_use_case: object = field(default=None)
-    list_evaluation_reports_use_case: object = field(default=None)
-    get_evaluation_report_detail_use_case: object = field(default=None)
-
-    # -- observability --
-    list_traces_use_case: object = field(default=None)
-    get_trace_detail_use_case: object = field(default=None)
 
     # -- optional --
     _redis_client: object = field(default=None, repr=False)
@@ -100,8 +74,7 @@ class RAGSystem:
     def sparse_index(self):
         return self.collection_manager.default_scope.sparse_index
 
-    # -- test compatibility (delegate to handlers) --
-
+    # -- test compatibility --
     @property
     def ingest_use_case(self):
         from rag_mcp.application.handlers import ingest_document as _fn
@@ -123,7 +96,6 @@ class RAGSystem:
         return _W()
 
     def close(self) -> None:
-        """Release resources held by the system."""
         for scope in self.collection_manager._scopes.values():
             close_method = getattr(scope.vector_store, "close", None)
             if callable(close_method):
@@ -133,83 +105,49 @@ class RAGSystem:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Factory function
+# Factory
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 def create_rag_system(settings: Settings | None = None) -> RAGSystem:
-    """Create and fully wire a :class:`RAGSystem` from *settings*.
-
-    When *settings* is ``None`` the default configuration is loaded
-    (``load_settings()``).  All components — Providers, Services, Use
-    Cases, Loaders, Splitters, Pipeline — are created in dependency
-    order inside this single function.
-    """
     if settings is None:
         settings = load_settings()
 
     rag = RAGSystem(settings=settings)
 
-    # ── 1. Shared infrastructure ──────────────────────────────────────
-
+    # -- shared --
     rag.trace_collector = JsonlTraceCollector(
-        resolve_project_path(settings.observability.trace_path)
-    )
+        resolve_project_path(settings.observability.trace_path))
     rag.trace_repository = JsonlTraceRepository(
-        resolve_project_path(settings.observability.trace_path)
-    )
+        resolve_project_path(settings.observability.trace_path))
     rag.evaluation_report_repository = JsonlEvaluationReportRepository(
-        resolve_project_path(settings.evaluation.report_path)
-    )
-
+        resolve_project_path(settings.evaluation.report_path))
     rag.collection_manager = CollectionManager(settings)
     rag.reranker = create_reranker(settings)
-    _vision = create_vision_llm_provider(settings)  # currently None
+    create_vision_llm_provider(settings)  # currently None
     rag.llm_provider = create_llm_provider(settings)
 
     _redis_cache, _redis_client = _create_redis_cache(settings)
     rag._redis_client = _redis_client
     rag.embedding_provider = _create_embedding_with_cache(settings, _redis_cache)
 
-    # ── 2. Ingestion ──────────────────────────────────────────────────
-
+    # -- ingestion --
     _wire_ingestion(rag, settings)
 
-    # ── 3. Retrieval ──────────────────────────────────────────────────
-
+    # -- retrieval --
     _wire_retrieval(rag, settings, _redis_cache)
 
-    # ── 4. Generation ─────────────────────────────────────────────────
-
+    # -- generation --
     _wire_generation(rag, settings)
-
-    # ── 5. Document management ────────────────────────────────────────
-
-    _wire_document_management(rag, settings)
-
-    # ── 6. Evaluation ─────────────────────────────────────────────────
-
-    _wire_evaluation(rag, settings)
-
-    # ── 7. Observability ──────────────────────────────────────────────
-
-    _wire_observability(rag, settings)
 
     return rag
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Internal wiring helpers (one per subsystem)
-# ═══════════════════════════════════════════════════════════════════════════
-
-
 def _wire_ingestion(rag: RAGSystem, settings: Settings) -> None:
-    from rag_mcp.application.use_cases.rebuild_collection import RebuildCollectionUseCase
-    from rag_mcp.application.use_cases.list_collections import ListCollectionsUseCase
     from rag_mcp.infrastructure.loaders.compound_loader import CompoundDocumentLoader
-    from rag_mcp.infrastructure.loaders.confluence_loader import ConfluenceDocumentLoader
-    from rag_mcp.infrastructure.loaders.pdf_loader import PdfDocumentLoader
     from rag_mcp.infrastructure.loaders.text_loader import TextDocumentLoader
+    from rag_mcp.infrastructure.loaders.pdf_loader import PdfDocumentLoader
+    from rag_mcp.infrastructure.loaders.confluence_loader import ConfluenceDocumentLoader
     from rag_mcp.infrastructure.ingestion.source_inspector import LocalSourceInspector
     from rag_mcp.infrastructure.ingestion.source_validator import LocalSourceValidator
     from rag_mcp.infrastructure.splitters.simple_splitter import SimpleTextSplitter
@@ -229,8 +167,7 @@ def _wire_ingestion(rag: RAGSystem, settings: Settings) -> None:
         min_chunk_length=settings.ingestion.min_chunk_length,
     )
     rag.pipeline = IngestionPipeline(
-        loader=rag.loader,
-        splitter=rag.splitter,
+        loader=rag.loader, splitter=rag.splitter,
         embedding_provider=rag.embedding_provider,
         document_repository=rag.document_repository,
         chunk_repository=rag.chunk_repository,
@@ -245,17 +182,11 @@ def _wire_ingestion(rag: RAGSystem, settings: Settings) -> None:
         ),
         collection_manager=rag.collection_manager,
     )
-    rag.rebuild_collection_use_case = RebuildCollectionUseCase(
-        settings=settings, collection_manager=rag.collection_manager,
-        pipeline=rag.pipeline, trace_collector=rag.trace_collector,
-    )
-    rag.list_collections_use_case = ListCollectionsUseCase(
-        settings=settings, collection_manager=rag.collection_manager,
-    )
 
 
 def _wire_retrieval(rag: RAGSystem, settings: Settings, redis_cache) -> None:
     from rag_mcp.domain.services.hybrid_retrieval import HybridRetrievalService
+    from rag_mcp.application.use_cases.query_knowledge import QueryKnowledgeUseCase
 
     rag.retrieval_service = HybridRetrievalService(
         embedding_provider=rag.embedding_provider,
@@ -265,8 +196,6 @@ def _wire_retrieval(rag: RAGSystem, settings: Settings, redis_cache) -> None:
         reranker=rag.reranker,
         redis_cache=redis_cache if settings.redis.cache.retrieval_enabled else None,
     )
-    # Thin query wrapper kept for eval compatibility
-    from rag_mcp.application.use_cases.query_knowledge import QueryKnowledgeUseCase
     rag.query_use_case = QueryKnowledgeUseCase(
         retrieval_service=rag.retrieval_service,
         trace_collector=rag.trace_collector,
@@ -284,61 +213,6 @@ def _wire_generation(rag: RAGSystem, settings: Settings) -> None:
     )
 
 
-def _wire_document_management(rag: RAGSystem, settings: Settings) -> None:
-    from rag_mcp.application.use_cases.list_documents import ListDocumentsUseCase
-    from rag_mcp.application.use_cases.get_document_detail import GetDocumentDetailUseCase
-    from rag_mcp.application.use_cases.get_document_summary import GetDocumentSummaryUseCase
-    from rag_mcp.application.use_cases.delete_document import DeleteDocumentUseCase
-
-    rag.list_documents_use_case = ListDocumentsUseCase(
-        collection_manager=rag.collection_manager,
-    )
-    rag.get_document_detail_use_case = GetDocumentDetailUseCase(
-        collection_manager=rag.collection_manager,
-    )
-    rag.get_document_summary_use_case = GetDocumentSummaryUseCase(
-        collection_manager=rag.collection_manager,
-    )
-    rag.delete_document_use_case = DeleteDocumentUseCase(
-        collection_manager=rag.collection_manager,
-    )
-
-
-def _wire_evaluation(rag: RAGSystem, settings: Settings) -> None:
-    from rag_mcp.application.use_cases.run_evaluation import RunEvaluationUseCase
-    from rag_mcp.application.use_cases.list_evaluation_reports import (
-        ListEvaluationReportsUseCase,
-    )
-    from rag_mcp.application.use_cases.get_evaluation_report_detail import (
-        GetEvaluationReportDetailUseCase,
-    )
-
-    rag.run_evaluation_use_case = RunEvaluationUseCase(
-        settings=settings,
-        query_use_case=rag.query_use_case,
-        evaluation_report_repository=rag.evaluation_report_repository,
-        trace_collector=rag.trace_collector,
-    )
-    rag.list_evaluation_reports_use_case = ListEvaluationReportsUseCase(
-        evaluation_report_repository=rag.evaluation_report_repository,
-    )
-    rag.get_evaluation_report_detail_use_case = GetEvaluationReportDetailUseCase(
-        evaluation_report_repository=rag.evaluation_report_repository,
-    )
-
-
-def _wire_observability(rag: RAGSystem, settings: Settings) -> None:
-    from rag_mcp.application.use_cases.list_traces import ListTracesUseCase
-    from rag_mcp.application.use_cases.get_trace_detail import GetTraceDetailUseCase
-
-    rag.list_traces_use_case = ListTracesUseCase(
-        trace_repository=rag.trace_repository,
-    )
-    rag.get_trace_detail_use_case = GetTraceDetailUseCase(
-        trace_repository=rag.trace_repository,
-    )
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Singleton + helpers
 # ═══════════════════════════════════════════════════════════════════════════
@@ -346,20 +220,13 @@ def _wire_observability(rag: RAGSystem, settings: Settings) -> None:
 
 @lru_cache(maxsize=1)
 def get_rag() -> RAGSystem:
-    """Return the singleton :class:`RAGSystem`."""
     return create_rag_system()
 
 
 def reset_rag() -> None:
-    """Clear the singleton and close resources."""
     if get_rag.cache_info().currsize:
         rag = get_rag()
-        for scope in rag.collection_manager._scopes.values():
-            close_m = getattr(scope.vector_store, "close", None)
-            if callable(close_m):
-                close_m()
-        if rag._redis_client is not None:
-            rag._redis_client.close()
+        rag.close()
     get_rag.cache_clear()
     try:
         from rag_mcp.mcp.sdk_server import reset_fastmcp_server
@@ -368,14 +235,17 @@ def reset_rag() -> None:
         pass
 
 
+reset_container = reset_rag   # backward compatibility
+get_container = get_rag        # backward compatibility
+ApplicationContainer = RAGSystem  # backward compatibility
+
+
 def _create_redis_cache(settings: Settings):
-    """Create a RedisCacheService if Redis is enabled and reachable."""
     if not settings.redis.enabled:
         return None, None
     try:
         from rag_mcp.infrastructure.redis.cache import RedisCacheService
         from rag_mcp.infrastructure.redis.client import RedisClient
-
         client = RedisClient(settings.redis)
         if not client.ping():
             logger.warning("Redis ping failed, caching disabled")
@@ -391,7 +261,6 @@ def _create_redis_cache(settings: Settings):
 
 
 def _create_embedding_with_cache(settings: Settings, redis_cache):
-    """Create embedding provider, optionally wrapped with caching."""
     provider = create_embedding_provider(settings)
     if redis_cache is not None and settings.redis.cache.embedding_enabled:
         from rag_mcp.infrastructure.embedding.caching_embedding import (

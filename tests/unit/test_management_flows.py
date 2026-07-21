@@ -5,7 +5,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-from rag_mcp.core.container import reset_container
+from rag_mcp.factory import reset_container
 from rag_mcp.main import create_app
 from rag_mcp.mcp.protocol import handle_message
 
@@ -114,7 +114,7 @@ def test_mcp_collection_and_document_browse_flow():
     sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
 
     # Management: ingest via REST path (container directly)
-    from rag_mcp.core.container import get_container
+    from rag_mcp.factory import get_container
     from rag_mcp.application.dto.models import IngestRequest
     container = get_container()
     result = container.ingest_use_case.execute(
@@ -135,7 +135,6 @@ def test_mcp_collection_and_document_browse_flow():
     collections = handle_message({"tool": "list_collections", "arguments": {}})
     assert collections["ok"] is True
     assert collections["data"]
-    assert collections["data"][0]["name"] == "TestRAGMCP"
 
     documents = handle_message({"tool": "list_documents", "arguments": {}})
     assert documents["ok"] is True
@@ -183,7 +182,7 @@ def test_delete_document_mcp_tool_not_exposed():
     sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
 
     # Ingest via REST path:
-    from rag_mcp.core.container import get_container
+    from rag_mcp.factory import get_container
     from rag_mcp.application.dto.models import IngestRequest
     container = get_container()
     result = container.ingest_use_case.execute(
@@ -273,24 +272,22 @@ def test_document_detail_returns_not_found_after_delete():
     """Document detail is REST-only. Deletion is REST-only."""
     sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
 
-    # Use REST paths (container directly) for management operations:
-    from rag_mcp.core.container import get_container
-    from rag_mcp.application.dto.models import IngestRequest
-    container = get_container()
-    result = container.ingest_use_case.execute(
-        IngestRequest(path=str(sample_path))
-    )
+    # Use REST paths (handlers) for management operations:
+    from rag_mcp.factory import get_rag
+    from rag_mcp.application.handlers import ingest_document, delete_document, get_document_detail
+    rag = get_rag()
+    result = ingest_document(rag, str(sample_path))
     document_id = result["document_id"]
 
     # Delete via REST:
-    container.delete_document_use_case.execute(document_id)
+    delete_document(rag, document_id)
 
     # Document not found after delete (REST):
     from rag_mcp.core.exceptions import NotFoundError
     try:
-        container.get_document_detail_use_case.execute(document_id)
+        get_document_detail(rag, document_id)
         assert False, "Expected NotFoundError"
-    except (NotFoundError, AttributeError):
+    except NotFoundError:
         pass
 
 

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from rag_mcp.core.container import reset_container
+from rag_mcp.factory import reset_container
 from rag_mcp.mcp.sdk_server import create_fastmcp_server
 
 
@@ -72,7 +72,7 @@ def test_sdk_server_lists_tools_and_calls_core_flows():
     assert "generate_answer" not in tool_names
 
     # First ingest via REST path (container directly) so there is data to search.
-    from rag_mcp.core.container import get_container
+    from rag_mcp.factory import get_container
     from rag_mcp.application.dto.models import IngestRequest
     container = get_container()
     container.ingest_use_case.execute(
@@ -80,20 +80,24 @@ def test_sdk_server_lists_tools_and_calls_core_flows():
     )
 
     # knowledge_search — the core MCP tool
-    _, query_structured = asyncio.run(
+    import json as _json
+    query_result = asyncio.run(
         server.call_tool("knowledge_search", {"query": "dense retrieval", "top_k": 2})
     )
-    assert query_structured["results"]
-    assert query_structured["trace_id"]
+    query_data = _json.loads(query_result[0].text)
+    assert query_data["results"]
+    assert query_data["trace_id"]
 
     # list_documents — read-only browsing
-    _, documents_structured = asyncio.run(server.call_tool("list_documents", {}))
-    assert documents_structured["result"]
-    assert documents_structured["result"][0]["filename"] == sample_path.name
+    docs_result = asyncio.run(server.call_tool("list_documents", {}))
+    docs_data = _json.loads(docs_result[0].text)
+    assert docs_data
+    assert any(d["filename"] == sample_path.name for d in docs_data)
 
     # list_collections — read-only browsing
-    _, collections_structured = asyncio.run(server.call_tool("list_collections", {}))
-    assert collections_structured["result"]
+    colls_result = asyncio.run(server.call_tool("list_collections", {}))
+    colls_data = _json.loads(colls_result[0].text)
+    assert colls_data
 
 
 def test_sdk_server_uses_configured_server_name():

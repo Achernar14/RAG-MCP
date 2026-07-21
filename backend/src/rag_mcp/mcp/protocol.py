@@ -28,7 +28,7 @@ from typing import Any
 
 from mcp.server.fastmcp.exceptions import ToolError
 
-from rag_mcp.core.container import get_container
+from rag_mcp.factory import get_container
 from rag_mcp.core.exceptions import NotFoundError, RagMcpError
 from rag_mcp.mcp.sdk_server import create_fastmcp_server
 
@@ -97,10 +97,20 @@ def _list_sdk_tools() -> list[dict[str, Any]]:
 def _execute_sdk_tool(tool_name: str, arguments: dict[str, Any] | None = None) -> tuple[list[dict[str, Any]], Any]:
     """Execute a tool through the official SDK server and normalize its result."""
     arguments = arguments or {}
-    content_blocks, structured_result = asyncio.run(
+    result = asyncio.run(
         create_fastmcp_server().call_tool(tool_name, arguments)
     )
-    return _serialize(content_blocks), _normalize_structured_result(_serialize(structured_result))
+    # With structured_output=False, call_tool returns list[TextContent].
+    # Parse the text content as JSON for structured result.
+    content_blocks = _serialize(result)
+    structured_result = None
+    if isinstance(result, list) and result:
+        try:
+            import json
+            structured_result = json.loads(result[0].text)
+        except (json.JSONDecodeError, AttributeError, IndexError):
+            pass
+    return content_blocks, _normalize_structured_result(_serialize(structured_result))
 
 
 def _handle_legacy_tool_message(message: dict[str, Any]) -> dict[str, Any]:

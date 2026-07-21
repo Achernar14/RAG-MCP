@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from rag_mcp.core.container import reset_container
+from rag_mcp.factory import reset_container
 from rag_mcp.observability.dashboard.services import DashboardService
 
 
@@ -53,7 +53,7 @@ def isolated_runtime(tmp_path, monkeypatch):
 
 
 def test_dashboard_service_exposes_management_and_trace_data():
-    from rag_mcp.core.container import get_container
+    from rag_mcp.factory import get_container
     from rag_mcp.application.dto.models import GenerateAnswerRequest
     from rag_mcp.application.dto.models import IngestRequest
     from rag_mcp.application.dto.models import QueryRequest

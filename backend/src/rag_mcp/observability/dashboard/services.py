@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
-from rag_mcp.application.dto.models import EvaluationRunRequest
-from rag_mcp.application.handlers import generate_answer, get_knowledge_status, ingest_document
+from rag_mcp.application.handlers import (
+    generate_answer, get_document_detail, get_knowledge_status, ingest_document,
+    list_documents, list_traces, rebuild_collection, delete_document,
+    run_evaluation, list_evaluation_reports, get_evaluation_report_detail,
+    list_collections, get_trace_detail,
+)
 from rag_mcp.core.exceptions import NotFoundError
 from rag_mcp.core.settings import settings_to_dict
 from rag_mcp.factory import get_rag
@@ -28,13 +32,13 @@ class DashboardService:
         return get_knowledge_status(self.rag)
 
     def list_collections(self) -> list[dict]:
-        return [item.model_dump() for item in self.rag.list_collections_use_case.execute()]
+        return list_collections(self.rag)
 
     def list_documents(self) -> list[dict]:
-        return [item.model_dump(mode="json") for item in self.rag.list_documents_use_case.execute()]
+        return list_documents(self.rag)
 
     def get_document_detail(self, document_id: str) -> dict:
-        return self.rag.get_document_detail_use_case.execute(document_id).model_dump(mode="json")
+        return get_document_detail(self.rag, document_id)
 
     def get_document_overview(self, document_id: str) -> dict:
         return build_document_overview(self.get_document_detail(document_id))
@@ -43,24 +47,18 @@ class DashboardService:
         return ingest_document(self.rag, path)
 
     def delete_document(self, document_id: str) -> dict:
-        return self.rag.delete_document_use_case.execute(document_id).model_dump()
+        return delete_document(self.rag, document_id)
 
     def rebuild_collection(self, collection_name: str | None = None) -> dict:
-        return self.rag.rebuild_collection_use_case.execute(collection_name).model_dump()
+        return rebuild_collection(self.rag, collection_name)
 
     def list_traces(self, trace_type: str | None = None, limit: int = 20) -> list[dict]:
-        """Return trace list items."""
-        return [
-            item.model_dump(mode="json")
-            for item in self.rag.list_traces_use_case.execute(trace_type=trace_type, limit=limit)
-        ]
+        return list_traces(self.rag, trace_type, limit)
 
     def get_trace_detail(self, trace_id: str) -> dict:
-        """Return a trace detail payload."""
-        return self.rag.get_trace_detail_use_case.execute(trace_id).model_dump(mode="json")
+        return get_trace_detail(self.rag, trace_id)
 
     def list_trace_overview(self, trace_type: str | None = None, limit: int = 20) -> list[dict]:
-        """Return enriched trace overview rows for dashboard display."""
         traces = self.rag.trace_repository.list_traces(trace_type=trace_type, limit=limit)
         return [build_trace_overview(item) for item in traces]
 
@@ -113,21 +111,13 @@ class DashboardService:
         }
 
     def run_evaluation(self, dataset_path: str | None = None, top_k: int | None = None) -> dict:
-        """Run an evaluation report."""
-        return self.rag.run_evaluation_use_case.execute(
-            EvaluationRunRequest(dataset_path=dataset_path, top_k=top_k)
-        ).model_dump()
+        return run_evaluation(self.rag, dataset_path, top_k)
 
     def list_evaluation_reports(self, limit: int = 20) -> list[dict]:
-        """Return recent evaluation reports."""
-        return [
-            item.model_dump()
-            for item in self.rag.list_evaluation_reports_use_case.execute(limit=limit)
-        ]
+        return list_evaluation_reports(self.rag, limit)
 
     def get_evaluation_report_detail(self, report_id: str) -> dict:
-        """Return a single evaluation report detail payload."""
-        return self.rag.get_evaluation_report_detail_use_case.execute(report_id).model_dump()
+        return get_evaluation_report_detail(self.rag, report_id)
 
     def generate_answer(self, query: str, top_k: int = 5) -> dict:
         """Generate a grounded answer from the active knowledge base."""

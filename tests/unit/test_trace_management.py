@@ -4,7 +4,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-from rag_mcp.core.container import reset_container
+from rag_mcp.factory import reset_container
 from rag_mcp.main import create_app
 from rag_mcp.mcp.protocol import handle_message
 
@@ -95,7 +95,7 @@ def test_mcp_trace_list_and_detail_not_exposed():
     sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
 
     # Ingest and query via REST (container directly):
-    from rag_mcp.core.container import get_container
+    from rag_mcp.factory import get_container
     from rag_mcp.application.dto.models import IngestRequest
     container = get_container()
     container.ingest_use_case.execute(IngestRequest(path=str(sample_path)))
