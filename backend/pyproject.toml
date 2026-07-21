@@ -60,6 +60,9 @@ weaviate = [
 redis = [
     "redis[hiredis]>=5.0.0",
 ]
+cross-encoder = [
+    "sentence-transformers>=3.0.0",
+]
 dev = [
     "pytest>=8.2.0",
     "streamlit>=1.45.0",

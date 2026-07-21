@@ -108,7 +108,6 @@ class RetrievalSettings(BaseModel):
 
 
 class RerankSettings(BaseModel):
-    provider: str = "lexical"
     enabled: bool = True
     model: str | None = None
     api_base: str | None = None

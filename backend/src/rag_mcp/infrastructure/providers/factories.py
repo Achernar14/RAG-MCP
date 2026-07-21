@@ -12,7 +12,7 @@ from rag_mcp.infrastructure.embedding.hash_embedding import HashEmbeddingProvide
 from rag_mcp.infrastructure.embedding.zhipu_embedding import ZhipuEmbeddingProvider
 from rag_mcp.infrastructure.llm.openai_compatible_llm import OpenAICompatibleLlmProvider
 from rag_mcp.infrastructure.llm.stub_llm import StubLlmProvider
-from rag_mcp.infrastructure.rerank.lexical_reranker import LexicalReranker
+from rag_mcp.infrastructure.rerank.cross_encoder_reranker import CrossEncoderReranker
 
 
 EmbeddingFactory = Callable[[Settings], object]
@@ -51,22 +51,11 @@ def create_llm_provider(settings: Settings):
 
 
 def create_reranker(settings: Settings) -> BaseReranker | None:
-    """Create a reranker provider from configuration."""
+    """Create a Cross-Encoder reranker from configuration."""
     if not settings.retrieval.rerank_enabled or not settings.rerank.enabled:
         return None
 
-    provider = settings.rerank.provider.lower()
-    if provider in {"disabled", "none"}:
-        return None
-
-    return _create_from_registry(
-        provider_type="rerank",
-        provider_name=provider,
-        settings=settings,
-        factories={
-            "lexical": _create_lexical_reranker,
-        },
-    )
+    return CrossEncoderReranker(model_name=settings.rerank.model)
 
 
 def create_vision_llm_provider(settings: Settings) -> object | None:
@@ -113,11 +102,6 @@ def _create_openai_compatible_llm_provider(settings: Settings) -> OpenAICompatib
         max_tokens=settings.llm.max_tokens,
         timeout_seconds=settings.llm.timeout_seconds,
     )
-
-
-def _create_lexical_reranker(settings: Settings) -> LexicalReranker:
-    del settings
-    return LexicalReranker()
 
 
 def _create_from_registry(
