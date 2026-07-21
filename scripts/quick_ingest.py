@@ -31,30 +31,28 @@ _SRC_PATH = _PROJECT_ROOT / "backend" / "src"
 if str(_SRC_PATH) not in sys.path:
     sys.path.insert(0, str(_SRC_PATH))
 
-from rag_mcp.application.dto.models import IngestRequest  # noqa: E402
-from rag_mcp.core.container import get_container, reset_container  # noqa: E402
+from rag_mcp.application.handlers import ingest_document  # noqa: E402
 from rag_mcp.core.exceptions import IngestionError  # noqa: E402
+from rag_mcp.factory import get_rag, reset_rag  # noqa: E402
 
 
 def _ingest_one(path: Path, force_rebuild: bool) -> tuple[bool, str]:
     """Ingest a single file. Returns (success, message)."""
-    container = get_container()
+    rag = get_rag()
     try:
-        response = container.ingest_use_case.execute(
-            IngestRequest(path=str(path), force_rebuild=force_rebuild)
-        )
+        result = ingest_document(rag, str(path), force_rebuild=force_rebuild)
     except IngestionError as exc:
         return False, f"ingestion error: {exc}"
-    except Exception as exc:  # noqa: BLE001 -- 摄入脚本需汇总任意失败
+    except Exception as exc:  # noqa: BLE001
         return False, f"unexpected error: {exc}"
 
-    action = response.ingestion_action
-    marker = "↻ replaced" if response.replaced_existing else f"✓ {action}"
+    action = result["ingestion_action"]
+    marker = "↻ replaced" if result["replaced_existing"] else f"✓ {action}"
     msg = (
         f"{marker}: {path.name} "
-        f"| chunks={response.chunk_count} "
-        f"| doc_id={response.document_id} "
-        f"| trace={response.trace_id}"
+        f"| chunks={result['chunk_count']} "
+        f"| doc_id={result['document_id']} "
+        f"| trace={result['trace_id']}"
     )
     return True, msg
 
@@ -96,8 +94,8 @@ def main() -> int:
         print(f"[error] 路径不存在: {target}", file=sys.stderr)
         return 2
 
-    container = get_container()
-    extensions = container.settings.ingestion.supported_extensions
+    rag = get_rag()
+    extensions = rag.settings.ingestion.supported_extensions
     files = _collect_files(target, args.recursive, extensions)
 
     if not files:
@@ -126,8 +124,8 @@ def main() -> int:
         f"\n[done] 成功 {succeeded} | 失败 {failed} | 耗时 {elapsed:.1f}s",
     )
 
-    # 释放容器持有的向量库等资源
-    reset_container()
+    # 释放向量库等资源
+    reset_rag()
     return 0 if failed == 0 else 1
 
 

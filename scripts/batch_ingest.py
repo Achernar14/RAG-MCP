@@ -36,8 +36,8 @@ _SRC_PATH = _PROJECT_ROOT / "backend" / "src"
 if str(_SRC_PATH) not in sys.path:
     sys.path.insert(0, str(_SRC_PATH))
 
-from rag_mcp.application.dto.models import IngestRequest  # noqa: E402
-from rag_mcp.core.container import get_container, reset_container  # noqa: E402
+from rag_mcp.application.handlers import ingest_document  # noqa: E402
+from rag_mcp.factory import get_rag, reset_rag  # noqa: E402
 from rag_mcp.core.exceptions import IngestionError  # noqa: E402
 
 # Windows console encoding
@@ -87,19 +87,17 @@ def _ingest_one(path: Path, force_rebuild: bool) -> dict:
     """Ingest a single file. Returns a result dict."""
     start = time.perf_counter()
     try:
-        container = get_container()
-        response = container.ingest_use_case.execute(
-            IngestRequest(path=str(path), force_rebuild=force_rebuild)
-        )
+        rag = get_rag()
+        result = ingest_document(rag, str(path), force_rebuild=force_rebuild)
         elapsed = time.perf_counter() - start
         return {
             "file": str(path),
             "filename": path.name,
-            "status": response.ingestion_action,
-            "document_id": response.document_id,
-            "chunk_count": response.chunk_count,
-            "trace_id": response.trace_id,
-            "replaced_existing": response.replaced_existing,
+            "status": result["ingestion_action"],
+            "document_id": result["document_id"],
+            "chunk_count": result["chunk_count"],
+            "trace_id": result["trace_id"],
+            "replaced_existing": result["replaced_existing"],
             "elapsed_s": round(elapsed, 2),
         }
     except IngestionError as exc:
@@ -183,10 +181,10 @@ def main() -> int:
         return 2
 
     # Collect files
-    container = get_container()
-    extensions = args.ext if args.ext else container.settings.ingestion.supported_extensions
+    container = get_rag()
+    extensions = args.ext if args.ext else rag.settings.ingestion.supported_extensions
     files = _collect_files(root, recursive=not args.no_recursive, extensions=extensions)
-    reset_container()
+    reset_rag()
 
     if not files:
         print(
@@ -293,7 +291,7 @@ def main() -> int:
         print(f"\n[report] saved to {report_path}")
 
     # Release resources
-    reset_container()
+    reset_rag()
     return 0 if failed == 0 else 1
 
 
