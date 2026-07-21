@@ -116,11 +116,6 @@ class IngestionPipeline:
         scope = self.collection_manager.get_scope(collection_name)
         return _ScopedStores(self, scope)
 
-    def _restore_defaults(self, saved: dict) -> None:
-        """Restore default store references from a saved snapshot."""
-        for attr, value in saved.items():
-            setattr(self, attr, value)
-
     def _validate_source(self, file_path: str, trace) -> Path:
         """Validate the local source file before any ingestion work starts."""
         if self.source_validator is None:

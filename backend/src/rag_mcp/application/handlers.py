@@ -1,9 +1,8 @@
-"""Thin orchestration functions — trace + service call + dict output.
+"""Orchestration functions — trace + service call + dict output.
 
-These replace the old UseCase classes.  Each function takes a
-:class:`RAGSystem` and the request parameters, manages a trace, calls
-the appropriate domain service, and returns a dict ready for API
-serialization.
+Each function takes a :class:`RAGSystem` and the request parameters,
+manages a trace, calls the appropriate domain service, and returns a
+dict ready for API serialization.
 """
 
 from __future__ import annotations

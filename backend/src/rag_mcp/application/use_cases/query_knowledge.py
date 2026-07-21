@@ -8,8 +8,8 @@ from rag_mcp.application.dto.models import (
     QueryResultDto,
     QuerySourceDto,
 )
+from rag_mcp.application.handlers import _build_sources
 from rag_mcp.core.tracing import TraceContext
-from rag_mcp.domain.entities.models import SourceTrace
 
 
 class QueryKnowledgeUseCase:
@@ -30,7 +30,7 @@ class QueryKnowledgeUseCase:
             top_k=request.top_k,
             trace=trace,
         )
-        sources = self._build_sources(results)
+        sources = _build_sources(results)
         trace.finish()
         self.trace_collector.collect(trace)
         return QueryResponse(
@@ -64,19 +64,4 @@ class QueryKnowledgeUseCase:
             ),
         )
 
-    def _build_sources(self, results) -> list[SourceTrace]:
-        sources: list[SourceTrace] = []
-        for index, result in enumerate(results, start=1):
-            metadata = result.metadata
-            sources.append(
-                SourceTrace(
-                    index=index,
-                    chunk_id=result.chunk_id,
-                    document_id=str(metadata.get("document_id", "")),
-                    source_path=str(metadata.get("source_path", "")),
-                    score=result.score,
-                    snippet=result.text[:200],
-                    chunk_index=metadata.get("chunk_index"),
-                )
-            )
-        return sources
+    # _build_sources delegates to handlers._build_sources (single source of truth)

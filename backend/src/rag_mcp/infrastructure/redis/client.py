@@ -68,8 +68,8 @@ class RedisClient:
         try:
             self._client.close()
         except Exception:
-            pass
+            logger.debug("Redis client close failed", exc_info=True)
         try:
             self._pool.disconnect()
         except Exception:
-            pass
+            logger.debug("Redis pool disconnect failed", exc_info=True)

@@ -28,8 +28,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-VectorStore = "ChromaVectorStore | InMemoryVectorStore | WeaviateVectorStore"
-
 # ── collection name validation ─────────────────────────────────────────
 
 # Allowed characters: alphanumeric, underscore, hyphen, dot.

@@ -28,7 +28,7 @@ from typing import Any
 
 from mcp.server.fastmcp.exceptions import ToolError
 
-from rag_mcp.factory import get_container
+from rag_mcp.factory import get_rag
 from rag_mcp.core.exceptions import NotFoundError, RagMcpError
 from rag_mcp.mcp.sdk_server import create_fastmcp_server
 
@@ -130,7 +130,7 @@ def _handle_initialize(params: dict[str, Any]) -> dict[str, Any]:
     """Handle MCP initialize."""
     client_protocol_version = params.get("protocolVersion")
     selected_protocol_version = client_protocol_version or MCP_PROTOCOL_VERSION
-    settings = get_container().settings
+    settings = get_rag().settings
     return {
         "protocolVersion": selected_protocol_version,
         "capabilities": {

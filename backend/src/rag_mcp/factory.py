@@ -124,7 +124,6 @@ def create_rag_system(settings: Settings | None = None) -> RAGSystem:
         resolve_project_path(settings.evaluation.report_path))
     rag.collection_manager = CollectionManager(settings)
     rag.reranker = create_reranker(settings)
-    create_vision_llm_provider(settings)  # currently None
     rag.llm_provider = create_llm_provider(settings)
 
     _redis_cache, _redis_client = _create_redis_cache(settings)
@@ -232,12 +231,10 @@ def reset_rag() -> None:
         from rag_mcp.mcp.sdk_server import reset_fastmcp_server
         reset_fastmcp_server()
     except Exception:
-        pass
+        logger.debug("Failed to reset FastMCP server cache", exc_info=True)
 
 
-reset_container = reset_rag   # backward compatibility
-get_container = get_rag        # backward compatibility
-ApplicationContainer = RAGSystem  # backward compatibility
+get_container = get_rag  # backward compatibility
 
 
 def _create_redis_cache(settings: Settings):

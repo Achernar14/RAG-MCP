@@ -131,4 +131,4 @@ class SqliteFtsStore:
         try:
             self.conn.close()
         except Exception:
-            pass
+            logger.debug("SQLite connection close failed", exc_info=True)
