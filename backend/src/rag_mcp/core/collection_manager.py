@@ -18,7 +18,7 @@ from rag_mcp.infrastructure.repositories.json_repositories import (
     JsonChunkRepository,
     JsonDocumentRepository,
 )
-from rag_mcp.infrastructure.sparse.bm25_store import JsonBm25Store
+from rag_mcp.infrastructure.sparse.sqlite_fts_store import SqliteFtsStore
 
 if TYPE_CHECKING:
     from rag_mcp.core.settings import Settings
@@ -104,7 +104,7 @@ class CollectionScope:
     vector_store: VectorStore
     document_repository: JsonDocumentRepository
     chunk_repository: JsonChunkRepository
-    sparse_index: JsonBm25Store
+    sparse_index: SqliteFtsStore
 
 
 class CollectionManager:
@@ -207,7 +207,7 @@ class CollectionManager:
 
         document_repo = JsonDocumentRepository(collection_dir / "documents.json")
         chunk_repo = JsonChunkRepository(collection_dir / "chunks.json")
-        sparse_index = JsonBm25Store(collection_dir / "bm25_index.json")
+        sparse_index = SqliteFtsStore(collection_dir / "bm25_fts.db")
         vector_store = self._build_vector_store(name, collection_dir)
 
         return CollectionScope(
