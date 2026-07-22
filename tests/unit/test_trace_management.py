@@ -4,9 +4,11 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
+import asyncio
+
 from rag_mcp.factory import reset_container
 from rag_mcp.main import create_app
-from rag_mcp.mcp.protocol import handle_message
+from rag_mcp.mcp.sdk_server import create_fastmcp_server
 
 
 @pytest.fixture(autouse=True)
@@ -92,27 +94,8 @@ def test_rest_trace_list_and_detail_flow():
 
 def test_mcp_trace_list_and_detail_not_exposed():
     """Trace browsing is NOT an MCP tool — diagnostics go through REST."""
-    sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
-
-    # Ingest and query via REST (container directly):
-    from rag_mcp.factory import get_container
-    from rag_mcp.application.dto.models import IngestRequest
-    container = get_container()
-    container.ingest_use_case.execute(IngestRequest(path=str(sample_path)))
-
-    query_response = container.query_use_case.execute(
-        type("QueryRequest", (), {"query": "dense retrieval", "top_k": 2, "collection_name": None})()
-    )
-    # Actually use the correct DTO:
-    from rag_mcp.application.dto.models import QueryRequest
-    qr = container.query_use_case.execute(QueryRequest(query="dense retrieval", top_k=2))
-    assert qr.trace_id
-
-    # Trace tools are NOT MCP tools:
-    traces = handle_message({"tool": "list_traces", "arguments": {"trace_type": "query", "limit": 5}})
-    assert traces["ok"] is False
-
-    detail = handle_message(
-        {"tool": "get_trace_detail", "arguments": {"trace_id": qr.trace_id}}
-    )
-    assert detail["ok"] is False
+    server = create_fastmcp_server()
+    tools = asyncio.run(server.list_tools())
+    tool_names = {tool.name for tool in tools}
+    assert "list_traces" not in tool_names
+    assert "get_trace_detail" not in tool_names

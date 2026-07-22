@@ -234,7 +234,8 @@ def reset_rag() -> None:
         logger.debug("Failed to reset FastMCP server cache", exc_info=True)
 
 
-get_container = get_rag  # backward compatibility
+reset_container = reset_rag   # backward compatibility
+get_container = get_rag        # backward compatibility
 
 
 def _create_redis_cache(settings: Settings):

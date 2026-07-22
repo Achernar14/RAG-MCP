@@ -4,9 +4,11 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
+import asyncio
+
 from rag_mcp.factory import reset_container
 from rag_mcp.main import create_app
-from rag_mcp.mcp.protocol import handle_message
+from rag_mcp.mcp.sdk_server import create_fastmcp_server
 from rag_mcp.observability.dashboard.services import DashboardService
 
 
@@ -127,14 +129,10 @@ def test_rest_generate_answer_flow():
 
 def test_mcp_generate_answer_not_exposed():
     """generate_answer is NOT an MCP tool — LLM generates its own answers."""
-    app = create_app()
-    client = TestClient(app)
-    _ingest_sample(client)
-
-    response = handle_message(
-        {"tool": "generate_answer", "arguments": {"query": "What does the MVP support?", "top_k": 3}}
-    )
-    assert response["ok"] is False  # Not a registered MCP tool
+    server = create_fastmcp_server()
+    tools = asyncio.run(server.list_tools())
+    tool_names = {tool.name for tool in tools}
+    assert "generate_answer" not in tool_names
 
 
 def test_dashboard_service_generate_answer_flow():

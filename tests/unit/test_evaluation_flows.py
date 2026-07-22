@@ -4,9 +4,11 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
+import asyncio
+
 from rag_mcp.factory import reset_container
 from rag_mcp.main import create_app
-from rag_mcp.mcp.protocol import handle_message
+from rag_mcp.mcp.sdk_server import create_fastmcp_server
 from rag_mcp.observability.dashboard.services import DashboardService
 
 
@@ -151,19 +153,12 @@ def test_rest_evaluation_flow():
 
 def test_mcp_evaluation_flow_not_exposed():
     """Evaluation tools are NOT MCP tools — management operations go through REST."""
-    app = create_app()
-    client = TestClient(app)
-    _ingest_samples(client)
-
-    # Management tools are rejected on the MCP channel:
-    run = handle_message({"tool": "run_evaluation", "arguments": {}})
-    assert run["ok"] is False
-
-    listing = handle_message({"tool": "list_evaluation_reports", "arguments": {"limit": 10}})
-    assert listing["ok"] is False
-
-    detail = handle_message({"tool": "get_evaluation_report", "arguments": {"report_id": "nonexistent"}})
-    assert detail["ok"] is False
+    server = create_fastmcp_server()
+    tools = asyncio.run(server.list_tools())
+    tool_names = {tool.name for tool in tools}
+    assert "run_evaluation" not in tool_names
+    assert "list_evaluation_reports" not in tool_names
+    assert "get_evaluation_report" not in tool_names
 
 
 def test_dashboard_service_evaluation_flow():

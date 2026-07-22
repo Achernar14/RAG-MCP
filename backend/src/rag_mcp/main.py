@@ -58,26 +58,17 @@ def create_app() -> FastAPI:
 
     # Mount MCP HTTP transport if configured
     transport = settings.mcp.transport
-    if transport in ("streamable-http", "sse"):
-        _mount_mcp_transport(app, transport, settings.mcp.mount_path)
+    if transport == "streamable-http":
+        _mount_mcp_transport(app, settings.mcp.mount_path)
 
     return app
 
 
-def _mount_mcp_transport(app: FastAPI, transport: str, mount_path: str) -> None:
-    """Mount the MCP ASGI sub-app on the FastAPI application."""
-    if transport == "streamable-http":
-        from rag_mcp.mcp.sdk_server import get_streamable_http_app
+def _mount_mcp_transport(app: FastAPI, mount_path: str) -> None:
+    """Mount the MCP Streamable HTTP ASGI sub-app on the FastAPI application."""
+    from rag_mcp.mcp.sdk_server import get_streamable_http_app
 
-        mcp_app = get_streamable_http_app()
-    elif transport == "sse":
-        from rag_mcp.mcp.sdk_server import get_sse_app
-
-        mcp_app = get_sse_app(mount_path=mount_path)
-    else:
-        return
-
-    app.mount(mount_path, mcp_app)
+    app.mount(mount_path, get_streamable_http_app())
 
 
 app = create_app()

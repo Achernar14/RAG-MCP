@@ -138,7 +138,7 @@ class PromptSettings(BaseModel):
 class McpSettings(BaseModel):
     server_name: str = "rag-mcp"
     server_version: str = "0.1.0"
-    transport: str = "stdio"  # "stdio" | "streamable-http" | "sse"
+    transport: str = "stdio"  # "stdio" | "streamable-http"
     host: str = "127.0.0.1"
     port: int = 9000
     mount_path: str = "/mcp"  # URL path for HTTP transports

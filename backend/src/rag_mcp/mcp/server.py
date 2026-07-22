@@ -7,9 +7,6 @@ Usage:
     # streamable-http
     python -m rag_mcp.mcp.server --transport streamable-http
 
-    # sse
-    python -m rag_mcp.mcp.server --transport sse
-
     # via pip-installed CLI entry point
     rag-mcp serve --transport streamable-http
 """
@@ -27,7 +24,7 @@ def _parse_args(argv: list[str] | None = None) -> str | None:
     parser = argparse.ArgumentParser(description="RAG MCP Server")
     parser.add_argument(
         "--transport",
-        choices=["stdio", "streamable-http", "sse"],
+        choices=["stdio", "streamable-http"],
         default=None,
         help="MCP transport protocol (default: reads from settings.yaml)",
     )

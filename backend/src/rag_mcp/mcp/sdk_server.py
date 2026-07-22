@@ -1,9 +1,8 @@
 """Official MCP SDK server wiring.
 
-Supports multiple transports:
+Supports two transports:
   - stdio           : local process communication (default)
   - streamable-http : HTTP-based MCP transport (recommended for remote access)
-  - sse             : legacy Server-Sent Events transport
 
 MCP tool registration is minimal by design — only read-only knowledge
 retrieval and browsing tools are exposed.  See ``mcp/tools.py``.
@@ -20,7 +19,7 @@ from starlette.applications import Starlette
 from rag_mcp.factory import get_rag
 from rag_mcp.mcp.tools import register_mcp_tools
 
-TransportType = Literal["stdio", "streamable-http", "sse"]
+TransportType = Literal["stdio", "streamable-http"]
 
 
 def _build_fastmcp_server() -> FastMCP:
@@ -51,11 +50,6 @@ def get_streamable_http_app() -> Starlette:
     return create_fastmcp_server().streamable_http_app()
 
 
-def get_sse_app(mount_path: str | None = None) -> Starlette:
-    """Return the Starlette ASGI app for MCP SSE transport."""
-    return create_fastmcp_server().sse_app(mount_path=mount_path)
-
-
 def main(transport: TransportType | None = None) -> int:
     """Run the SDK-backed MCP server with the configured transport.
 
@@ -69,9 +63,6 @@ def main(transport: TransportType | None = None) -> int:
 
     if transport == "streamable-http":
         server.run(transport="streamable-http")
-    elif transport == "sse":
-        settings = get_rag().settings
-        server.run(transport="sse", mount_path=settings.mcp.mount_path)
     else:
         server.run(transport="stdio")
 

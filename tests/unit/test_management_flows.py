@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from rag_mcp.factory import reset_container
 from rag_mcp.main import create_app
-from rag_mcp.mcp.protocol import handle_message
+from rag_mcp.mcp.sdk_server import create_fastmcp_server
 
 
 @pytest.fixture(autouse=True)
@@ -122,35 +123,31 @@ def test_mcp_collection_and_document_browse_flow():
     )
     document_id = result["document_id"]
 
-    # Management tools are NOT MCP tools:
-    ingest_attempt = handle_message(
-        {"tool": "knowledge_ingest", "arguments": {"path": str(sample_path)}}
-    )
-    assert ingest_attempt["ok"] is False
+    server = create_fastmcp_server()
+    tools = asyncio.run(server.list_tools())
+    tool_names = {tool.name for tool in tools}
 
-    status_attempt = handle_message({"tool": "knowledge_status", "arguments": {}})
-    assert status_attempt["ok"] is False
+    # Management tools are NOT MCP tools:
+    assert "knowledge_ingest" not in tool_names
+    assert "knowledge_status" not in tool_names
+    assert "get_document_summary" not in tool_names
+    assert "get_document_detail" not in tool_names
 
     # Read-only browsing tools STAY on MCP:
-    collections = handle_message({"tool": "list_collections", "arguments": {}})
-    assert collections["ok"] is True
-    assert collections["data"]
+    assert "list_collections" in tool_names
+    assert "list_documents" in tool_names
 
-    documents = handle_message({"tool": "list_documents", "arguments": {}})
-    assert documents["ok"] is True
-    assert documents["data"][0]["id"] == document_id
-    assert documents["data"][0]["chunk_count"] >= 1
+    # Verify list_collections works via SDK
+    import json as _json
+    coll_result = asyncio.run(server.call_tool("list_collections", {}))
+    coll_data = _json.loads(coll_result[0].text)
+    assert coll_data
 
-    # Document detail & summary are NOT MCP tools:
-    summary_attempt = handle_message(
-        {"tool": "get_document_summary", "arguments": {"document_id": document_id}}
-    )
-    assert summary_attempt["ok"] is False
-
-    detail_attempt = handle_message(
-        {"tool": "get_document_detail", "arguments": {"document_id": document_id}}
-    )
-    assert detail_attempt["ok"] is False
+    # Verify list_documents works via SDK
+    docs_result = asyncio.run(server.call_tool("list_documents", {}))
+    docs_data = _json.loads(docs_result[0].text)
+    assert docs_data[0]["id"] == document_id
+    assert docs_data[0]["chunk_count"] >= 1
 
 
 def test_delete_document_rest_flow_removes_indexes():
@@ -179,22 +176,10 @@ def test_delete_document_rest_flow_removes_indexes():
 
 def test_delete_document_mcp_tool_not_exposed():
     """delete_document is NOT an MCP tool — destructive operations go through REST."""
-    sample_path = Path(__file__).resolve().parents[2] / "data" / "documents" / "sample.md"
-
-    # Ingest via REST path:
-    from rag_mcp.factory import get_container
-    from rag_mcp.application.dto.models import IngestRequest
-    container = get_container()
-    result = container.ingest_use_case.execute(
-        IngestRequest(path=str(sample_path))
-    )
-    document_id = result["document_id"]
-
-    # delete_document is NOT an MCP tool:
-    deletion = handle_message(
-        {"tool": "delete_document", "arguments": {"document_id": document_id}}
-    )
-    assert deletion["ok"] is False
+    server = create_fastmcp_server()
+    tools = asyncio.run(server.list_tools())
+    tool_names = {tool.name for tool in tools}
+    assert "delete_document" not in tool_names
 
 
 def test_rebuild_collection_replaces_stale_indexes_rest(tmp_path):
@@ -242,15 +227,18 @@ def test_rebuild_collection_replaces_stale_indexes_rest(tmp_path):
     assert rebuilt_results
     assert all("obsoletekeyword" not in item["text"] for item in rebuilt_results)
 
+    import sqlite3
     settings_path = Path(__import__("os").getenv("RAG_MCP_SETTINGS_PATH"))
     settings = yaml.safe_load(settings_path.read_text(encoding="utf-8"))
     metadata_base = Path(settings["vector_store"]["persist_path"]).parent / settings["vector_store"]["collection_name"]
-    bm25_index = json.loads(metadata_base.joinpath("bm25_index.json").read_text(encoding="utf-8"))
-    assert all("obsoletekeyword" not in payload["text"] for payload in bm25_index.values())
+    fts_db = metadata_base / "bm25_fts.db"
+    rows = sqlite3.connect(str(fts_db)).execute("SELECT text FROM bm25").fetchall()
+    assert all("obsoletekeyword" not in row[0] for row in rows)
 
     # rebuild_collection is NOT an MCP tool:
-    mcp_rebuild = handle_message({"tool": "rebuild_collection", "arguments": {}})
-    assert mcp_rebuild["ok"] is False
+    server = create_fastmcp_server()
+    tools = asyncio.run(server.list_tools())
+    assert "rebuild_collection" not in {t.name for t in tools}
 
 
 def test_rebuild_collection_rejects_unknown_collection():
@@ -262,10 +250,9 @@ def test_rebuild_collection_rejects_unknown_collection():
     assert "Collection not found" in rest_response.json()["detail"]
 
     # rebuild_collection is NOT an MCP tool:
-    mcp_response = handle_message(
-        {"tool": "rebuild_collection", "arguments": {"collection_name": "unknown"}}
-    )
-    assert mcp_response["ok"] is False
+    server = create_fastmcp_server()
+    tools = asyncio.run(server.list_tools())
+    assert "rebuild_collection" not in {t.name for t in tools}
 
 
 def test_document_detail_returns_not_found_after_delete():
