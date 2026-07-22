@@ -4,8 +4,7 @@ version = "0.1.0"
 description = "A modular, MCP-native RAG service — knowledge backend for AI Agents"
 license = {text = "MIT"}
 authors = [
-    {name = "Long Chengfei", email = "longchengfei@example.com"},
-    {name = "Zeng Boyuan", email = "zengboyuan@example.com"},
+    {name = "Zeng Boyuan", email = "zeng.boyuan@foxmail.com"}
 ]
 keywords = [
     "rag",
